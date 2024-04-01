@@ -5,20 +5,19 @@ from tensorflow.keras.layers import Dense, LSTM
 import tensorflow_probability as tfp
 
 class ActorCriticNetwork(Model):
-    def __init__(self, n_actions, lstm1_dims=1024, lstm2_dims=512,  fc_dims=5,
+    def __init__(self, lstm1_dims=1024, lstm2_dims=512,  fc_dims=5,
                  name='actor_critic', chkpt_dir='tmp/actor_critic'):
         super(ActorCriticNetwork, self).__init__()
         self.lstm1_dims = lstm1_dims
         self.lstm2_dims = lstm2_dims
         self.fc_dims = fc_dims
-        self.n_actions = n_actions
         self.model_name = name
         self.checkpoint_dir = chkpt_dir
         self.checkpoint_file = os.path.join(self.checkpoint_dir, name+'_ac')
 
-        self.lstm1 = LSTM(self.lstm1_dims, return_sequences=True, activation='relu')
-        self.lstm2 = LSTM(self.lstm2_dims,  activation='relu')
-        self.fc  = Dense(self.fc_dims,  activation='relu')
+        self.lstm1 = LSTM(self.lstm1_dims, return_sequences=True, activation='sigmoid')
+        self.lstm2 = LSTM(self.lstm2_dims,  activation='sigmoid')
+        self.fc  = Dense(self.fc_dims,  activation='sigmoid')
         self.v   = Dense(1, trainable=True, activation=None)
 
     def call(self, state:tf.Tensor):

@@ -75,7 +75,28 @@ class HeikinAshiMovingAverage(Strategy):
         if self.useUpdateSl and tpInPips/2 < currentPrice-entryPrice:
             newSlInPips = -tpInPips/4 
         return newSlInPips
+    
+    def updateSlAndTpWithRL(self, capital, df):
+        _maxSlInPips = -utility.getSlInPipsForTrade(
+                            invested = capital*self.maxRisk,
+                            pipValue = 50, # valeur du pip pour le SP500 pour un lot standard = 50
+                            lotSize = 0.01 # micro lot
+                        )
+        _maxTpInPips = -_maxSlInPips
+        
+        observation = df.to_numpy()
+        sl, tp = self.agent.choose_action(observation)
+        
+        if 0 < tp and tp <= 1:
+            tp = tp*_maxTpInPips
+        else: tp = _maxTpInPips
 
+        if 0 < sl and sl <= 1:
+            sl = sl*_maxSlInPips
+        else: sl = _maxSlInPips
+
+        return sl, tp
+    
     def determineSlAndTpWithRL(self, capital:float, df:pd.DataFrame):
         _maxSlInPips = -utility.getSlInPipsForTrade(
                             invested = capital*self.maxRisk,
@@ -87,8 +108,14 @@ class HeikinAshiMovingAverage(Strategy):
         observation = df[["open", "close","low", "high"]].to_numpy()
         sl, tp = self.agent.choose_action(observation)
 
-        sl = max(sl, _maxSlInPips)
-        tp = min(tp, _maxTpInPips)
+        if 0 < tp and tp <= 1:
+            tp = tp*_maxTpInPips
+        else: tp = _maxTpInPips
+
+        if 0 < sl and sl <= 1:
+            sl = sl*_maxSlInPips
+        else: sl = _maxSlInPips
+
         return sl, tp
 
 
