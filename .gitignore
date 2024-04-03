@@ -1,1 +1,5 @@
+.gitignore
 __pycache__/
+.vscode/
+.ipynb_checkpoints/
+the_plan.md

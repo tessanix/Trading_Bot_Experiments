@@ -1,7 +1,7 @@
 from strategies.Strategy import Strategy
 import utility
 import pandas as pd
-from actor_critic.trading_agent.agent import Agent
+from reinforcement_learning.trading_agent.actor_critic.agent import Agent
 
 class HeikinAshiMovingAverage(Strategy):
 

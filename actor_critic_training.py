@@ -3,26 +3,22 @@ from strategies.Strategy import Strategy
 from random import randrange
 import numpy as np
 
-def actorCritictrainingLoop(df: pd.DataFrame, strategy: Strategy, longTermMAPeriod:int=200, pipValue:float=50.0):
+def actorCritictrainingLoop(df: pd.DataFrame, strategy: Strategy, longTermMAPeriod:int=200, pipValue:float=50.0, n_games:int=1000, capital:float=4000.0):
     
-    
-    n_games = 1000
+    n_games = n_games
     score_history = []
     best_score = 0
 
     for episode in range(n_games):
-        capital = 4000 #$
-        inPosition = False
-        entryPrice, sl, tp = 0, 0, 0
-        slInPips, tpInPips = 0, 0
+
+        ### starting values ###
+        capital = capital #$
         pipValue = pipValue
+        inPosition = False
+        sl, tp, slInPips, tpInPips = 0, 0, 0, 0
+        entryPrice = 0.0
         lot_size = 0.01
-        # entryDate = df["datetime"].iloc[0]
-        # tradesData = []
-        
-        # starting values:
         done = False
-        # score = 0.0
         startIndex = randrange(start=longTermMAPeriod+strategy.N, stop=len(df))
         i = 0
         reward = 30.0 

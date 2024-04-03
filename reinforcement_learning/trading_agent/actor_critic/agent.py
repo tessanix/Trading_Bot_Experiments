@@ -1,7 +1,7 @@
 
 import tensorflow as tf
 from tensorflow.python.keras.optimizer_v2.adam import Adam
-from actor_critic.trading_agent.networks import ActorCriticNetwork
+from reinforcement_learning.trading_agent.actor_critic.networks import ActorCriticNetwork
 
 
 class Agent:
