@@ -14,8 +14,7 @@ class Agent:
     
     def choose_action(self, observation):
         # print(f"observation shape: {observation.shape}")
-        state = tf.convert_to_tensor([observation])
-        _, dist = self.actor_critic(state)    
+        _, dist = self.actor_critic(observation)    
        
         action = dist.sample()
         # print(f"action shape: {action}")
@@ -31,29 +30,30 @@ class Agent:
     
     def updateSlAndTp(self, df:pd.DataFrame, _maxSlInPips:float, _maxTpInPips:float):
 
-        observation = df.to_numpy()
-        sl, tp = self.choose_action(observation)
-        
-        if 0 < tp and tp <= 1:
-            tp = tp*_maxTpInPips
-        else: tp = _maxTpInPips
+        slAndTp      = tf.convert_to_tensor([[_maxSlInPips, _maxTpInPips]])
+        observation = tf.convert_to_tensor([df.to_numpy()])
 
-        if 0 < sl and sl <= 1:
-            sl = sl*_maxSlInPips
-        else: sl = _maxSlInPips
+        sl, tp = self.choose_action((observation, slAndTp))
+        # tp belongs to [0, +inf[
+        # sl belongs to [0, +inf[
 
+        tp = tp*_maxTpInPips if 0 < tp else _maxTpInPips
+       
+        sl = sl*(-_maxSlInPips) + _maxSlInPips
+       
         return sl, tp
     
-    def learn(self, state, reward, state_, done):
+    def learn(self, state, reward, state_, maxSlInPips, maxTpInPips, done):
         # print(f'state shape: {state.shape}')
         # print(f'state_ shape: {state_.shape}')
+        slAndTp = tf.convert_to_tensor([[maxSlInPips, maxTpInPips]], dtype=tf.float32)
         state  = tf.convert_to_tensor([state], dtype=tf.float32)
         state_ = tf.convert_to_tensor([state_], dtype=tf.float32)
         reward = tf.convert_to_tensor([reward], dtype=tf.float32)
 
         with tf.GradientTape() as tape:
-            state_value, dist = self.actor_critic(state)
-            state_value_, _ = self.actor_critic(state_)
+            state_value, dist = self.actor_critic((state, slAndTp))
+            state_value_, _ = self.actor_critic((state_, slAndTp))
             state_value = tf.squeeze(state_value)
             state_value_ = tf.squeeze(state_value_)
 

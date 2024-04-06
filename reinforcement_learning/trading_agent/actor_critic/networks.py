@@ -5,31 +5,41 @@ from tensorflow.keras.layers import Dense, LSTM
 import tensorflow_probability as tfp
 
 class ActorCriticNetwork(Model):
-    def __init__(self, lstm1_dims=256, lstm2_dims=128,  fc_dims=5,
+    def __init__(self, lstm1_dims=256, lstm2_dims=128,  fc_dims1=64, fc_dims2=5,
                  name='actor_critic', chkpt_dir='tmp/actor_critic'):
         super(ActorCriticNetwork, self).__init__()
         self.lstm1_dims = lstm1_dims
         self.lstm2_dims = lstm2_dims
-        self.fc_dims = fc_dims
+        self.fc_dims1 = fc_dims1
+        self.fc_dims2 = fc_dims2
         self.model_name = name
         self.checkpoint_dir = chkpt_dir
         self.checkpoint_file = os.path.join(self.checkpoint_dir, name+'_ac')
 
         self.lstm1 = LSTM(self.lstm1_dims, return_sequences=True, activation='sigmoid')
-        self.lstm2 = LSTM(self.lstm2_dims,  activation='sigmoid')
-        self.fc  = Dense(self.fc_dims,  activation='sigmoid')
+        self.lstm2 = LSTM(self.lstm2_dims,  activation='tanh')
+        self.fc1  = Dense(self.fc_dims1,  activation='tanh')
+        self.fc2  = Dense(self.fc_dims2,  activation='tanh')
         self.v   = Dense(1, trainable=True, activation=None)
 
-    def call(self, state:tf.Tensor):
+    def call(self, state:tuple[tf.Tensor, tf.Tensor]):
+        marketPrice, slAndTp = state
+
         # state shape will be: [batch, [open,high,low,close], N] == [batch, 4, N]
-        # print(f"state shape: {state.shape}")
+        # print(f"marketPrice shape: {marketPrice.shape}")
+        # print(f"slAndTp shape: {slAndTp.shape}")
+
         # batch_size = state.shape[0]
 
-        value = self.lstm1(state) # shape == [batch, N, lstm1_dims]
+        value = self.lstm1(marketPrice) # shape == [batch, N, lstm1_dims]
         # print(f"value1 shape: {value.shape}")
         value = self.lstm2(value) # shape == [batch, lstm2_dims]
+
+        value = tf.concat([value, slAndTp], axis=1)
+
+        value = self.fc1(value) # shape == [batch, fc_dims1]
         # print(f"value2 shape: {value.shape}")
-        value = self.fc(value)    # shape == [batch, fc_dims]
+        value = self.fc2(value)    # shape == [batch, fc_dims2]
 
         mu  = tf.slice(value, [0, 0], [1, 2]) # shape == [batch, 2]
         cov = tf.slice(value, [0, 1], [1, 4]) # shape == [batch, 4]

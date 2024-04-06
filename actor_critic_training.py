@@ -49,24 +49,23 @@ def actorCritictrainingLoop(df: pd.DataFrame, strategy: Strategy, agent:Agent, l
                     capital += profit 
                     reward += profit
                     inPosition = False
-                    i+=1
+                    done = True
+
+                if startIndex+i == len(df) and not done: # si l'épisode n'est pas fini mais qu'on a plus de données pour continuer
                     done = True
                 else:
-                    if startIndex+i == len(df) and not done: # si l'épisode n'est pas fini mais qu'on a plus de données pour continuer
-                        done = True
+                    if i==1:
+                        reward += (observation_["close"].iloc[-1] - entryPrice)/entryPrice # reward basé sur la variation du prix depuis entry_price
+                        agent.learn(observation.to_numpy(), reward, observation_.to_numpy(), maxSlInPips, maxTpInPips, done)
+
                     else:
-                        if i<=1:
-                            reward += (observation_["close"].iloc[-1] - entryPrice)/entryPrice # reward basé sur la variation du prix depuis entry_price
-                            agent.learn(observation.to_numpy(), reward, observation_.to_numpy(), True)
+                        agent.learn(observation.to_numpy(), reward, observation_.to_numpy(), maxSlInPips, maxTpInPips, done)
+                        reward += (observation_["close"].iloc[-1] - entryPrice)/entryPrice # reward basé sur la variation du prix depuis entry_price
 
-                        else:
-                            agent.learn(observation.to_numpy(), reward, observation_.to_numpy(), True)
-                            reward += (observation_["close"].iloc[-1] - entryPrice)/entryPrice # reward basé sur la variation du prix depuis entry_price
+                    slInPips, tpInPips = agent.updateSlAndTp(observation_, maxSlInPips, maxTpInPips)
 
-                        slInPips, tpInPips = agent.updateSlAndTp(observation_, maxSlInPips, maxTpInPips)
-
-                        observation = observation_
-                        i+=1
+                    observation = observation_
+                i+=1
 
         score_history.append(reward)
         avg_score = np.mean(score_history[-100:])
