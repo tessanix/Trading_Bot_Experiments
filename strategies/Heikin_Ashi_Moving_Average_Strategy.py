@@ -5,17 +5,15 @@ from reinforcement_learning.trading_agent.actor_critic.agent import Agent
 
 class HeikinAshiMovingAverage(Strategy):
 
-    def __init__(self, agent:Agent, N:int=3, levels: list[float]=[], useSR:str="simpleSR", useUpdateSl:bool=True, longTermMAPeriod=200, uselongTermMA:bool=True, percentZoneFromMA:float=2):
+    def __init__(self, N:int=3, levels: list[float]=[], useSR:bool=True, useUpdateSl:bool=True, longTermMAPeriod=200, uselongTermMA:bool=True, percentZoneFromMA:float=2):
         self.maxRisk = 0.02 # 2%
         self.N = N
         self.keyLevels = levels
-        self.useSR = useSR # values = NoSR, "simpleSR", "SRbyRL"
+        self.useSR = useSR 
         self.useUpdateSl = useUpdateSl
         self.uselongTermMA = uselongTermMA
         self.longTermMAPeriod = longTermMAPeriod
         self.percentZoneFromMA = percentZoneFromMA
-
-        self.agent = agent
 
     def setParams(self, **kwargs):
         self.N = kwargs["N"]
@@ -75,48 +73,6 @@ class HeikinAshiMovingAverage(Strategy):
         if self.useUpdateSl and tpInPips/2 < currentPrice-entryPrice:
             newSlInPips = -tpInPips/4 
         return newSlInPips
-    
-    def updateSlAndTpWithRL(self, capital, df):
-        _maxSlInPips = -utility.getSlInPipsForTrade(
-                            invested = capital*self.maxRisk,
-                            pipValue = 50, # valeur du pip pour le SP500 pour un lot standard = 50
-                            lotSize = 0.01 # micro lot
-                        )
-        _maxTpInPips = -_maxSlInPips
-        
-        observation = df.to_numpy()
-        sl, tp = self.agent.choose_action(observation)
-        
-        if 0 < tp and tp <= 1:
-            tp = tp*_maxTpInPips
-        else: tp = _maxTpInPips
-
-        if 0 < sl and sl <= 1:
-            sl = sl*_maxSlInPips
-        else: sl = _maxSlInPips
-
-        return sl, tp
-    
-    def determineSlAndTpWithRL(self, capital:float, df:pd.DataFrame):
-        _maxSlInPips = -utility.getSlInPipsForTrade(
-                            invested = capital*self.maxRisk,
-                            pipValue = 50, # valeur du pip pour le SP500 pour un lot standard = 50
-                            lotSize = 0.01 # micro lot
-                        )
-        _maxTpInPips = -_maxSlInPips
-        
-        observation = df[["open", "close","low", "high"]].to_numpy()
-        sl, tp = self.agent.choose_action(observation)
-
-        if 0 < tp and tp <= 1:
-            tp = tp*_maxTpInPips
-        else: tp = _maxTpInPips
-
-        if 0 < sl and sl <= 1:
-            sl = sl*_maxSlInPips
-        else: sl = _maxSlInPips
-
-        return sl, tp
 
 
     def checkIfCanEnterPosition(self, df: pd.DataFrame, i: int, capital: float) -> tuple[bool, float, float, float, str]:
@@ -140,15 +96,11 @@ class HeikinAshiMovingAverage(Strategy):
             if df["shortTermMA"].loc[i] < df["HA open"].loc[i] and df["HA color"].loc[i] == "green" and isLastNCandlesInshortTermMAZone:
                 entryDate = df["datetime"].loc[i]
                 entryPrice =  df["close"].loc[i]
-                if self.useSR=="simpleSR":
+
+                if self.useSR:
                     isBelowMiddleSR, slInPips, tpInPips = self.determineSlAndTp(capital, entryPrice, self.keyLevels, df["last2DaysVariation"].loc[i])
                     inPosition = isBelowMiddleSR
-
-                elif self.useSR=="SRbyRL":
-                    slInPips, tpInPips = self.determineSlAndTpWithRL(capital, df)
-                    inPosition = True
-
-                elif self.useSR=="NoSR":
+                else :
                     slInPips = -utility.getSlInPipsForTrade(
                                 invested = capital*self.maxRisk,
                                 pipValue = 50, # valeur du pip pour le SP500 pour un lot standard = 50

@@ -17,7 +17,3 @@ class Strategy(ABC):
     def updateSl(self, currentPrice: float, entryPrice:float, tpInPips:float) -> float:
         pass
 
-    @abstractmethod 
-    def updateSlAndTpWithRL(self, capital, df) -> tuple[float, float]:
-        pass
-

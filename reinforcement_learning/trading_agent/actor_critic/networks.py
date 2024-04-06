@@ -5,7 +5,7 @@ from tensorflow.keras.layers import Dense, LSTM
 import tensorflow_probability as tfp
 
 class ActorCriticNetwork(Model):
-    def __init__(self, lstm1_dims=1024, lstm2_dims=512,  fc_dims=5,
+    def __init__(self, lstm1_dims=256, lstm2_dims=128,  fc_dims=5,
                  name='actor_critic', chkpt_dir='tmp/actor_critic'):
         super(ActorCriticNetwork, self).__init__()
         self.lstm1_dims = lstm1_dims

@@ -1,4 +1,4 @@
-
+import pandas as pd
 import tensorflow as tf
 from tensorflow.python.keras.optimizer_v2.adam import Adam
 from reinforcement_learning.trading_agent.actor_critic.networks import ActorCriticNetwork
@@ -28,7 +28,22 @@ class Agent:
         print("--- saving models ---")
         self.actor_critic.save_weights(self.actor_critic.checkpoint_file)
 
+    
+    def updateSlAndTp(self, df:pd.DataFrame, _maxSlInPips:float, _maxTpInPips:float):
 
+        observation = df.to_numpy()
+        sl, tp = self.choose_action(observation)
+        
+        if 0 < tp and tp <= 1:
+            tp = tp*_maxTpInPips
+        else: tp = _maxTpInPips
+
+        if 0 < sl and sl <= 1:
+            sl = sl*_maxSlInPips
+        else: sl = _maxSlInPips
+
+        return sl, tp
+    
     def learn(self, state, reward, state_, done):
         # print(f'state shape: {state.shape}')
         # print(f'state_ shape: {state_.shape}')
