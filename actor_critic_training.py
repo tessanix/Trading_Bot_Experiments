@@ -11,16 +11,16 @@ def actorCritictrainingLoop(df: pd.DataFrame, strategy: Strategy, agent:Agent, l
     score_history = []
     best_score = 0
     candlesWindow = 100
+    capital = capital #$
+    pipValue = pipValue
+    lot_size = 0.01
 
     for episode in range(n_games):
 
         ### starting values ###
-        capital = capital #$
-        pipValue = pipValue
         inPosition = False
         sl, tp, slInPips, tpInPips, maxSlInPips, maxTpInPips = 0, 0, 0, 0, 0, 0
         entryPrice = 0.0
-        lot_size = 0.01
         done = False
         startIndex = choice(df.index[longTermMAPeriod+strategy.N:])
         i = 0
@@ -48,7 +48,6 @@ def actorCritictrainingLoop(df: pd.DataFrame, strategy: Strategy, agent:Agent, l
                     profit = tpInPips*pipValue*lot_size if win else slInPips*pipValue*lot_size
                     capital += profit 
                     reward += profit
-                    inPosition = False
                     done = True
 
                 if startIndex+i == len(df) and not done: # si l'épisode n'est pas fini mais qu'on a plus de données pour continuer
@@ -67,13 +66,19 @@ def actorCritictrainingLoop(df: pd.DataFrame, strategy: Strategy, agent:Agent, l
                     observation = observation_
                 i+=1
 
-        score_history.append(reward)
-        avg_score = np.mean(score_history[-100:])
+        if inPosition:
+            score_history.append(reward)
+            avg_score = np.mean(score_history[-100:])
 
-        if avg_score > best_score:
-            best_score = avg_score
+            if avg_score > best_score: 
+                best_score = avg_score
+            print(f'episode: {episode}, capital:{capital}, slInPips: {slInPips}, tpInPips:{tpInPips}, score: {reward}, avg_score: {avg_score}, nb iter: {i}')
+
+        else:
+            print(f'episode: {episode}: no trade passed.')
+
+    return score_history
     
-        print(f'episode: {episode}, score: {reward}, avg_score: {avg_score}, nb iter: {i}')
         
                     
 

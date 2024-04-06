@@ -34,13 +34,13 @@ class Agent:
         observation = tf.convert_to_tensor([df.to_numpy()])
 
         sl, tp = self.choose_action((observation, slAndTp))
-        # tp belongs to [0, +inf[
-        # sl belongs to [0, +inf[
+        # tp belongs to [0, +inf[ maybe
+        # sl belongs to [0, +inf[ maybe
 
         tp = tp*_maxTpInPips if 0 < tp else _maxTpInPips
-       
-        sl = sl*(-_maxSlInPips) + _maxSlInPips
-       
+
+        sl = sl*(-_maxSlInPips) + _maxSlInPips if 0 < sl else max(sl, _maxSlInPips)
+      
         return sl, tp
     
     def learn(self, state, reward, state_, maxSlInPips, maxTpInPips, done):
