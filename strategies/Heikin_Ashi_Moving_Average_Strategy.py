@@ -1,5 +1,5 @@
 from strategies.Strategy import Strategy
-import utility
+import utils.utility as utility
 import pandas as pd
 from reinforcement_learning.trading_agent.actor_critic.agent import Agent
 

@@ -5,11 +5,11 @@ from reinforcement_learning.trading_agent.actor_critic.networks import ActorCrit
 
 
 class Agent:
-    def __init__(self, alpha=0.0003, gamma=0.99):
+    def __init__(self, alpha=0.0003, gamma=0.99, chkpt_dir="model_x", name='trading_bot_AC'):
         self.gamma = gamma
         self.action = None
 
-        self.actor_critic = ActorCriticNetwork()
+        self.actor_critic = ActorCriticNetwork(chkpt_dir=chkpt_dir, name=name)
         self.actor_critic.compile(optimizer=Adam(learning_rate=alpha)) # type: ignore
     
     def choose_action(self, observation):
