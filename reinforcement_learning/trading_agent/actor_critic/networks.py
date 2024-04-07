@@ -6,7 +6,7 @@ import tensorflow_probability as tfp
 
 class ActorCriticNetwork(Model):
     def __init__(self, lstm1_dims=256, lstm2_dims=128,  fc_dims1=64, fc_dims2=5,
-                 name='actor_critic', chkpt_dir='tmp/actor_critic'):
+                 name='trading_bot_AC', chkpt_dir='reinforcement_learning/trading_agent/actor_critic/tmp/model_x'):
         super(ActorCriticNetwork, self).__init__()
         self.lstm1_dims = lstm1_dims
         self.lstm2_dims = lstm2_dims
@@ -14,7 +14,7 @@ class ActorCriticNetwork(Model):
         self.fc_dims2 = fc_dims2
         self.model_name = name
         self.checkpoint_dir = chkpt_dir
-        self.checkpoint_file = os.path.join(self.checkpoint_dir, name+'_ac')
+        self.checkpoint_file = os.path.join(self.checkpoint_dir, name)
 
         self.lstm1 = LSTM(self.lstm1_dims, return_sequences=True, activation='sigmoid')
         self.lstm2 = LSTM(self.lstm2_dims,  activation='tanh')

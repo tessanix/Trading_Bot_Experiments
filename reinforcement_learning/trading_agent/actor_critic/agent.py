@@ -27,7 +27,11 @@ class Agent:
         print("--- saving models ---")
         self.actor_critic.save_weights(self.actor_critic.checkpoint_file)
 
-    
+    def load_weights(self):
+        print("--- loading models ---")
+        self.actor_critic.load_weights(self.actor_critic.checkpoint_file)
+
+        
     def updateSlAndTp(self, df:pd.DataFrame, _maxSlInPips:float, _maxTpInPips:float):
 
         slAndTp      = tf.convert_to_tensor([[_maxSlInPips, _maxTpInPips]])
@@ -47,8 +51,8 @@ class Agent:
         # print(f'state shape: {state.shape}')
         # print(f'state_ shape: {state_.shape}')
         slAndTp = tf.convert_to_tensor([[maxSlInPips, maxTpInPips]], dtype=tf.float32)
-        state  = tf.convert_to_tensor([state], dtype=tf.float32)
-        state_ = tf.convert_to_tensor([state_], dtype=tf.float32)
+        state  = tf.convert_to_tensor([state.to_numpy()], dtype=tf.float32)
+        state_ = tf.convert_to_tensor([state_.to_numpy()], dtype=tf.float32)
         reward = tf.convert_to_tensor([reward], dtype=tf.float32)
 
         with tf.GradientTape() as tape:

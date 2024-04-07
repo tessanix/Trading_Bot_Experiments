@@ -95,7 +95,7 @@ class HeikinAshiMovingAverage(Strategy):
             
             if df["shortTermMA"].loc[i] < df["HA open"].loc[i] and df["HA color"].loc[i] == "green" and isLastNCandlesInshortTermMAZone:
                 entryDate = df["datetime"].loc[i]
-                entryPrice =  df["close"].loc[i]
+                entryPrice = df["close"].loc[i]
 
                 if self.useSR:
                     isBelowMiddleSR, slInPips, tpInPips = self.determineSlAndTp(capital, entryPrice, self.keyLevels, df["last2DaysVariation"].loc[i])

@@ -5,8 +5,8 @@ import numpy as np
 from reinforcement_learning.trading_agent.actor_critic.agent import Agent
 
 
-def actorCritictrainingLoop(df: pd.DataFrame, strategy: Strategy, agent:Agent, longTermMAPeriod:int=200, pipValue:float=50.0, n_games:int=1000, capital:float=4000.0):
-    
+def actorCritictrainingLoop(df: pd.DataFrame, strategy: Strategy, agent:Agent, longTermMAPeriod:int=200, pipValue:float=50.0, n_games:int=1000, capital:float=4000.0, load_checkPt=False):
+    load_checkPoint = load_checkPt
     n_games = n_games
     score_history = []
     best_score = 0
@@ -55,10 +55,12 @@ def actorCritictrainingLoop(df: pd.DataFrame, strategy: Strategy, agent:Agent, l
                 else:
                     if i==1:
                         reward += (observation_["close"].iloc[-1] - entryPrice)/entryPrice # reward basé sur la variation du prix depuis entry_price
-                        agent.learn(observation.to_numpy(), reward, observation_.to_numpy(), maxSlInPips, maxTpInPips, done)
+                        if not load_checkPoint:
+                            agent.learn(observation, reward, observation_, maxSlInPips, maxTpInPips, done)
 
                     else:
-                        agent.learn(observation.to_numpy(), reward, observation_.to_numpy(), maxSlInPips, maxTpInPips, done)
+                        if not load_checkPoint:
+                            agent.learn(observation, reward, observation_, maxSlInPips, maxTpInPips, done)
                         reward += (observation_["close"].iloc[-1] - entryPrice)/entryPrice # reward basé sur la variation du prix depuis entry_price
 
                     slInPips, tpInPips = agent.updateSlAndTp(observation_, maxSlInPips, maxTpInPips)
@@ -72,7 +74,9 @@ def actorCritictrainingLoop(df: pd.DataFrame, strategy: Strategy, agent:Agent, l
 
             if avg_score > best_score: 
                 best_score = avg_score
-            print(f'episode: {episode}, capital:{capital}, slInPips: {slInPips}, tpInPips:{tpInPips}, score: {reward}, avg_score: {avg_score}, nb iter: {i}')
+                if not load_checkPoint:
+                    agent.save_models()
+            print(f'episode: {episode}, capital:{capital:.2f}, slInPips: {slInPips:.2f}, tpInPips:{tpInPips:.2f}, score: {reward:.5f}, avg_score: {avg_score:.5f}, nb iter: {i}')
 
         else:
             print(f'episode: {episode}: no trade passed.')
