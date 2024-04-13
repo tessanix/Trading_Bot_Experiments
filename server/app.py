@@ -44,9 +44,9 @@ def runTradingBot():
         elif (request.form["runBot"] == True) and not botRunning:
             tradingLoop.runLoop()
         elif (request.form["runBot"] == False) and not botRunning:
-            return "The bot is not running you dumb dumb"
+            return "The bot is already NOT running"
         elif (request.form["runBot"] == True) and botRunning:
-            return "The bot is already running you super dumb"
+            return "The bot is already running"
         else:
             return "IDK"
         

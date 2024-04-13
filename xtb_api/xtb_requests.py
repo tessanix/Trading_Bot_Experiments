@@ -1,216 +1,165 @@
+import ssl
 import json
-from ssl import SSLSocket
+import socket
 from datetime import datetime, timedelta
 from xtb_api.xtb_responses_processing import processListOfCandlesFromXtb
 
-PERIOD_H4 = 240 # == 240 minutes
-END = b'\n\n'
 
-orderCommands = {"BUY":0, "SELL":1}
-orderTypes = {"OPEN":0, "PENDING":1, "CLOSE":2, "MODIFY":3, "DELETE":4}
-NEW_ORDER = 0
+class XTBRequests():
+    def __init__(self, symbol='US500'):
+        
+        self.orderCommands = {"BUY":0, "SELL":1}
+        self.orderTypes = {"OPEN":0, "PENDING":1, "CLOSE":2, "MODIFY":3, "DELETE":4}
+        self.positionId = 0
+        self.PERIOD_H4 = 240
+        self.symbol = symbol
+
+        self.host = 'xapi.xtb.com'
+        self.port = 5124 # port for DEMO account
+
+        self.sock  = socket.create_connection((self.host, self.port))
+        self.ssock = ssl.create_default_context().wrap_socket(self.sock, server_hostname=self.host)
+
+    def closeSocket(self):
+        self.ssock.close()
+        self.sock.close()
+
+    def readConfig(self):
+        config = {}
+        with open("config.ini") as configFile:
+            for line in configFile:
+                name, _, var = line.partition("=")
+                config[name] = var.strip('\n')
+        return config
+    
+    def sendCommand(self, command:dict):
+        request = json.dumps(command).encode("UTF-8")
+        self.ssock.send(request)
+        END = b'\n\n'
+        response_buffer = b''
+        while True:
+            chunk = self.ssock.recv(4096)
+            response_buffer += chunk
+            if END in chunk: break
+
+        jsonObject:dict = json.loads(response_buffer.decode())
+
+        if jsonObject["status"] == True:
+            return jsonObject
+        else:
+            print(f"command sent: {command['command']}")
+            print(f'Error code: {jsonObject["errorCode"]}')
+            print(f'Error description: {jsonObject["errorDescr"]}')
+            return {}
 
 
-def login(socket:SSLSocket):
-    config = {}
-    with open("config.ini") as configFile:
-        for line in configFile:
-            name, _ , var = line.partition("=")
-            config[name] = var.strip('\n')
 
-    request = json.dumps({
-        "command": "login",
-        "arguments": {
-            "userId":   config['DEMO_ID'],     # account number
-            "password": config['PWD']
+    def login(self):
+        config = self.readConfig()
+        command = {
+            "command": "login",
+            "arguments": {
+                "userId":   config['DEMO_ID'],
+                "password": config['PWD']
+            }
         }
-    }).encode("UTF-8")
-    socket.send(request)
-
-    response = socket.recv(8192)
-    jsonObject = json.loads(response.decode())
-
-    if jsonObject["status"] == True:
-        return jsonObject["streamSessionId"]
-    else:
-        print(f'Error code: {jsonObject["errorCode"]}')
-        print(f'Error description: {jsonObject["errorDescr"]}')
-        return None
+        jsonObject = self.sendCommand(command)
+        return jsonObject
     
 
-def getServerTime(socket:SSLSocket):
-    request = json.dumps({
-        "command": "getServerTime"
-    }).encode("UTF-8")
-
-    socket.send(request)
-    response = socket.recv(8192)
-    jsonObject = json.loads(response.decode())
-
-    if jsonObject["status"] == True:
+    def getServerTime(self):
+        command = {"command": "getServerTime"}
+        jsonObject = self.sendCommand(command)
         timestampInMs = jsonObject["returnData"]["time"]
         datetime_object = datetime.fromtimestamp(timestampInMs/1000.0)
         return datetime_object
-    else:
-        print(f'Error code: {jsonObject["errorCode"]}')
-        print(f'Error description: {jsonObject["errorDescr"]}')
-        return None
-    
+        
 
-def getLastNCandlesH4(socket:SSLSocket, nCandles=100, symbol="US500"):
-
-    currentDatetime = datetime.now()
-    delta = timedelta(days=60) # environ 2 mois
-    new_datetime = currentDatetime - delta # 2 mois en arrière
-    timestampInMs = new_datetime.timestamp()*1000
-
-    request = json.dumps({
-        "command": "getChartLastRequest",
-        "arguments": {
-            "info": {
-                "period": PERIOD_H4,
-                "start": timestampInMs,
-                "symbol": symbol
+    def getLastNCandlesH4(self, nCandles=100):
+        currentDatetime = datetime.now()
+        delta = timedelta(days=50) 
+        new_datetime = currentDatetime - delta # 2 mois en arrière
+        timestampInMs = new_datetime.timestamp()*1000
+        command = {
+            "command": "getChartLastRequest",
+            "arguments": {
+                "info": {
+                    "period": self.PERIOD_H4,
+                    "start": timestampInMs,
+                    "symbol": self.symbol
+                }
             }
         }
-    }).encode("UTF-8")
-
-    socket.send(request)
-        
-    response_buffer = b''
-    while True:
-        chunk = socket.recv(4096)
-        response_buffer += chunk
-        if END in chunk: break
-
-    jsonObject = json.loads(response_buffer.decode())
-
-    if jsonObject["status"] == True:
+        jsonObject = self.sendCommand(command)
         listOfCandles = jsonObject["returnData"]["rateInfos"]
         listOfCandles = listOfCandles[-nCandles:]
         return processListOfCandlesFromXtb(listOfCandles)
-    else:
-        print(f'Error code: {jsonObject["errorCode"]}')
-        print(f'Error description: {jsonObject["errorDescr"]}')
-        return None
-    
-
-def openBuyPosition(socket:SSLSocket, price:float, sl:float, tp:float, vol:float, symbol='US500'):
-    request = json.dumps( {
-        "command": "tradeTransaction",
-        "arguments": {
-            "tradeTransInfo": {
-                "cmd": orderCommands["BUY"],
-                "customComment": "",
-                "expiration": 0,
-                "order": NEW_ORDER,
-                "price":price,
-                "sl": sl,
-                "tp": tp,
-                "symbol": symbol,
-                "type": orderTypes["OPEN"],
-                "volume": vol
+       
+        
+    def openBuyPosition(self, price:float, sl:float, tp:float, vol:float):
+        command = {
+            "command": "tradeTransaction",
+            "arguments": {
+                "tradeTransInfo": {
+                    "cmd": self.orderCommands["BUY"],
+                    "customComment": "",
+                    "expiration": 0,
+                    "order": self.positionId,
+                    "price":price,
+                    "sl": sl,
+                    "tp": tp,
+                    "symbol": self.symbol,
+                    "type": self.orderTypes["OPEN"],
+                    "volume": vol
+                }
             }
         }
-    }).encode("UTF-8")
-
-    socket.send(request)
-        
-    response_buffer = b''
-    while True:
-        chunk = socket.recv(4096)
-        response_buffer += chunk
-        if END in chunk: break
-
-    jsonObject = json.loads(response_buffer.decode())
-
-    if jsonObject["status"] == True:
-        positionId = jsonObject["returnData"]["order"]
-        return positionId
-    else:
-        print(f'Error code: {jsonObject["errorCode"]}')
-        print(f'Error description: {jsonObject["errorDescr"]}')
-        return None
+        jsonObject = self.sendCommand(command)
+        self.positionId = jsonObject["returnData"]["order"]
+        return self.positionId
 
 
-def modifyPosition(socket:SSLSocket, sl:float, tp:float, vol:float, positionId:float, symbol='US500'):
-    request = json.dumps( {
-        "command": "tradeTransaction",
-        "arguments": {
-            "tradeTransInfo": {
-                "order": positionId,
-                "price":1,
-                "sl": sl,
-                "tp": tp,
-                "symbol": symbol,
-                "type": orderTypes["MODIFY"],
-                "volume": vol
+    def modifyPosition(self, sl:float, tp:float, vol:float):
+        command = {
+            "command": "tradeTransaction",
+            "arguments": {
+                "tradeTransInfo": {
+                    "order": self.positionId,
+                    "price":1,
+                    "sl": sl,
+                    "tp": tp,
+                    "symbol": self.symbol,
+                    "type": self.orderTypes["MODIFY"],
+                    "volume": vol
+                }
             }
         }
-    }).encode("UTF-8")
 
-    socket.send(request)
-        
-    response_buffer = b''
-    while True:
-        chunk = socket.recv(4096)
-        response_buffer += chunk
-        if END in chunk: break
-
-    jsonObject = json.loads(response_buffer.decode())
-
-    if jsonObject["status"] == True:
+        jsonObject = self.sendCommand(command)
         positionId = jsonObject["returnData"]["order"]
         return positionId
-    else:
-        print(f'Error code: {jsonObject["errorCode"]}')
-        print(f'Error description: {jsonObject["errorDescr"]}')
-        return None
 
 
-def checkPositionStatus(socket:SSLSocket, positionId:float):
-    request = json.dumps({
-        "command": "getTradeRecords",
-        "arguments": {
-            "orders": [positionId]
+    def checkPositionStatus(self):
+        command = {
+            "command": "getTradeRecords",
+            "arguments": {
+                "orders": [self.positionId]
+            }
         }
-    }).encode("UTF-8")
 
-    socket.send(request)
-        
-    response_buffer = b''
-    while True:
-        chunk = socket.recv(4096)
-        response_buffer += chunk
-        if END in chunk: break
-
-    jsonObject = json.loads(response_buffer.decode())
-
-    if jsonObject["status"] == True:
+        jsonObject = self.sendCommand(command)
         closed = jsonObject["returnData"][0]["closed"]
         profit = jsonObject["returnData"][0]["profit"]
         return (closed, profit)
-    else:
-        print(f'Error code: {jsonObject["errorCode"]}')
-        print(f'Error description: {jsonObject["errorDescr"]}')
-        return None
+       
 
-
-def getBalance(socket:SSLSocket):
-    request = json.dumps({
-        "command": "getMarginLevel"
-    }).encode("UTF-8")
-
-    socket.send(request)
-    response = socket.recv(8192)
-    jsonObject = json.loads(response.decode())
-
-    if jsonObject["status"] == True:
-        return jsonObject["returnData"]["balance"]
-    else:
-        print(f'Error code: {jsonObject["errorCode"]}')
-        print(f'Error description: {jsonObject["errorDescr"]}')
-        return None
+    def getBalance(self):
+        command =  {"command": "getMarginLevel"}
+        jsonObject = self.sendCommand(command)
+        balance:float = jsonObject["returnData"]["balance"]
+        return balance
+        
 
     
    
