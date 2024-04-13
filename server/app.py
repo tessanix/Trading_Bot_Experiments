@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, session, request
+from flask import Flask, render_template, redirect, jsonify, session, request
 import sys; sys.path.insert(1, '..')
 from xtb_api.trading_loop import TradingLoop
 
@@ -38,17 +38,41 @@ def runTradingBot():
         return redirect("/")
     
     if request.method == "POST":
-        botRunning = tradingLoop.get_running()
-        if (request.form["runBot"] == False) and botRunning:
-            tradingLoop.stopLoop()
-        elif (request.form["runBot"] == True) and not botRunning:
-            tradingLoop.runLoop()
-        elif (request.form["runBot"] == False) and not botRunning:
-            return "The bot is already NOT running"
-        elif (request.form["runBot"] == True) and botRunning:
-            return "The bot is already running"
-        else:
-            return "IDK"
+        if request.json != None:
+            buttonValue = request.json['value'] # button on HTML page
+            print("button value: ", request.json['value'])
+            botRunning = tradingLoop.get_running() # value allowing loop to run
+            if (buttonValue == "STOP") and botRunning:
+                # tradingLoop.stopLoop()
+                return jsonify({
+                    'button_value' : 'RUN',
+                    'text_result': 'Bot stoped!'
+                })
+            
+            elif (buttonValue == "RUN") and not botRunning:
+                # tradingLoop.runLoop()
+                return jsonify({
+                    'button_value' : 'STOP',
+                    'text_result': 'Bot launched!'
+                })
+            
+            elif (buttonValue == "STOP") and not botRunning:
+                return jsonify({
+                    'button_value' : 'STOP',
+                    'text_result': "Bot can't be stoped, he is already not running!"
+                })
+            
+            elif (buttonValue == "RUN") and botRunning:
+                return jsonify({
+                    'button_value':'RUN',
+                    'text_result': "Bot can't be launched, he is already running!"
+                })
+            
+            else:
+                return jsonify({
+                    'button_value': buttonValue,
+                    'text_result': "IDK"
+                })
         
     return render_template("index.html")
 

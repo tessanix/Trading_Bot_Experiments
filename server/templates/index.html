@@ -1,11 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>bruh</title>
-</head>
-<body>
-    HELLOOOOOOOOOO
-</body>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>My Thing</title>
+    </head>
+    
+    <body>
+        <button id="myButton" data-value="RUN">Run</button>
+        <p id="result">Nothing launched</p>
+
+        <script>
+            document.getElementById('myButton').addEventListener('click', function() {
+                // When the button is clicked, send a POST request to the server
+                fetch('/run', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ value: this.getAttribute('data-value') })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Update the paragraph element with the response from the server
+                    document.getElementById('result').innerText = data.text_result;
+                    this.innerText = data.button_value;
+                    this.setAttribute('data-value', data.button_value);
+                })
+                .catch(error => console.error('Error:', error));
+            });
+        </script>
+    </body>
 </html>
