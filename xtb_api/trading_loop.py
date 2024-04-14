@@ -48,40 +48,42 @@ class TradingLoop:
         inPosition = False
         priceAlreadySeen = False
 
-        _ = self.xtbRequest.login()
-        observation = self.xtbRequest.getLastNCandlesH4(nCandles=100)
+        response = self.xtbRequest.login()
+        if response and response["status"] == True:
+            
+            observation = self.xtbRequest.getLastNCandlesH4(nCandles=100)
 
-        while self.get_running():
+            while self.get_running():
 
-            if not priceAlreadySeen:
-                if not inPosition:
-                    capital = self.xtbRequest.getBalance() # TODO: change "balance" to "equity" in the function
-                    inPosition, maxSlInPips, maxTpInPips, entryPrice, entryDate = self.strategy.checkIfCanEnterPosition(df=observation, i=-1, capital=capital)
-                    if inPosition: 
-                        slInPips, tpInPips = self.agent.updateSlAndTp(observation, maxSlInPips, maxTpInPips) # choose action
-                        sl, tp = entryPrice+slInPips, entryPrice+tpInPips
-                        _ = self.xtbRequest.openBuyPosition(entryPrice, sl=sl, tp=tp, vol=0.01)
-                else:
-                    self.currentPrice = observation["close"].iloc[-1]
-                    status = self.xtbRequest.checkPositionStatus()
-                    closed, profit = status
-                    if closed: 
-                        inPosition = False
-                        self.xtbRequest.positionId = 0
+                if not priceAlreadySeen:
+                    if not inPosition:
+                        capital = self.xtbRequest.getBalance() # TODO: change "balance" to "equity" in the function
+                        inPosition, maxSlInPips, maxTpInPips, entryPrice, entryDate = self.strategy.checkIfCanEnterPosition(df=observation, i=-1, capital=capital)
+                        if inPosition: 
+                            slInPips, tpInPips = self.agent.updateSlAndTp(observation, maxSlInPips, maxTpInPips) # choose action
+                            sl, tp = entryPrice+slInPips, entryPrice+tpInPips
+                            _ = self.xtbRequest.openBuyPosition(entryPrice, sl=sl, tp=tp, vol=0.01)
                     else:
-                        slInPips, tpInPips = self.agent.updateSlAndTp(observation, maxSlInPips, maxTpInPips)
-                        _ = self.xtbRequest.modifyPosition(sl, tp, 0.01)
+                        self.currentPrice = observation["close"].iloc[-1]
+                        status = self.xtbRequest.checkPositionStatus()
+                        closed, profit = status
+                        if closed: 
+                            inPosition = False
+                            self.xtbRequest.positionId = 0
+                        else:
+                            slInPips, tpInPips = self.agent.updateSlAndTp(observation, maxSlInPips, maxTpInPips)
+                            _ = self.xtbRequest.modifyPosition(sl, tp, 0.01)
 
-                priceAlreadySeen = True
+                    priceAlreadySeen = True
 
-            actual_hour = datetime.now(self._CetCestTimezone).hour        
-            if actual_hour % 4 == 0 and actual_hour != last_hour:
-                # time.sleep(5) #sleep 5 seconds to let the server refresh his data ???
-                last_hour = actual_hour
-                observation = self.xtbRequest.getLastNCandlesH4(nCandles=100)
-                priceAlreadySeen = False
+                actual_hour = datetime.now(self._CetCestTimezone).hour        
+                if actual_hour % 4 == 0 and actual_hour != last_hour:
+                    # time.sleep(5) #sleep 5 seconds to let the server refresh his data ???
+                    last_hour = actual_hour
+                    observation = self.xtbRequest.getLastNCandlesH4(nCandles=100)
+                    priceAlreadySeen = False
 
-        # END OF WHILE LOOP
+            # END OF WHILE LOOP
         self.xtbRequest.closeSocket()
 
  

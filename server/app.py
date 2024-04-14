@@ -37,33 +37,38 @@ def runTradingBot():
     if not session.get("logged_in"):
         return redirect("/")
     
+    botRunning = tradingLoop.get_running() # value allowing loop to run
+
     if request.method == "POST":
         if request.json != None:
             buttonValue = request.json['value'] # button on HTML page
             print("button value: ", request.json['value'])
-            botRunning = tradingLoop.get_running() # value allowing loop to run
             if (buttonValue == "STOP") and botRunning:
-                # tradingLoop.stopLoop()
+                tradingLoop.stopLoop()
                 return jsonify({
+                    'button_text': 'Run it!',
                     'button_value' : 'RUN',
                     'text_result': 'Bot stoped!'
                 })
             
             elif (buttonValue == "RUN") and not botRunning:
-                # tradingLoop.runLoop()
+                tradingLoop.runLoop()
                 return jsonify({
+                    'button_text': 'Stop it!',
                     'button_value' : 'STOP',
                     'text_result': 'Bot launched!'
                 })
             
             elif (buttonValue == "STOP") and not botRunning:
                 return jsonify({
+                    'button_text': 'Run it!',
                     'button_value' : 'STOP',
                     'text_result': "Bot can't be stoped, he is already not running!"
                 })
             
             elif (buttonValue == "RUN") and botRunning:
                 return jsonify({
+                    'button_text': 'Stop it!',
                     'button_value':'RUN',
                     'text_result': "Bot can't be launched, he is already running!"
                 })
@@ -73,8 +78,10 @@ def runTradingBot():
                     'button_value': buttonValue,
                     'text_result': "IDK"
                 })
-        
-    return render_template("index.html")
+            
+    btnText="Run it!" if not botRunning else "Stop it!"
+    btnValue="STOP" if botRunning else "RUN"
+    return render_template("index.html", btnValue=btnValue, btnText=btnText)
 
 @app.route("/logout")
 def logout():

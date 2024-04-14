@@ -26,7 +26,7 @@ class XTBRequests():
 
     def readConfig(self):
         config = {}
-        with open("config.ini") as configFile:
+        with open("../xtb_api/config.ini") as configFile:
             for line in configFile:
                 name, _, var = line.partition("=")
                 config[name] = var.strip('\n')
@@ -160,7 +160,3 @@ class XTBRequests():
         balance:float = jsonObject["returnData"]["balance"]
         return balance
         
-
-    
-   
-   
