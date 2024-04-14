@@ -3,15 +3,16 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
         <title>My Thing</title>
     </head>
     
     <body>
-        <button id="myButton" data-value="RUN">Run</button>
+        <button id="OnOffButton" data-value="RUN">Run</button>
         <p id="result">Nothing launched</p>
 
         <script>
-            document.getElementById('myButton').addEventListener('click', function() {
+            document.getElementById('OnOffButton').addEventListener('click', function() {
                 // When the button is clicked, send a POST request to the server
                 fetch('/run', {
                     method: 'POST',
