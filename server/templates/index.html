@@ -8,26 +8,79 @@
     </head>
     
     <body>
-        <button id="OnOffButton" data-value="{{btnValue}}">{{btnText}}</button>
-        <p id="result">Nothing launched</p>
+
+        <button id="loginButton" data-value="{{login_btn.value}}">{{login_btn.text}}</button>
+        <p id="login-status">Status: {{login_btn.status}}</p>
+
+        <button id="onOffButton" data-value="{{on_off_btn.value}}">{{on_off_btn.text}}</button>
+        <p id="trading-loop-status">Status: {{on_off_btn.status}}</p>
 
         <script>
-            document.getElementById('OnOffButton').addEventListener('click', function() {
+            const onOffButton = document.getElementById('onOffButton');
+            const tradingLoopStatus = document.getElementById('trading-loop-status');
+
+            onOffButton.addEventListener('click', () => {
                 // When the button is clicked, send a POST request to the server
-                fetch('/run', {
+                fetch('/run_trading_bot', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ value: this.getAttribute('data-value') })
+                    body: JSON.stringify({ value: onOffButton.getAttribute('data-value') })
                 })
                 .then(response => response.json())
                 .then(data => {
+                    console.log("data from response of onOffButton click:")
+                    console.log(data)
                     // Update the paragraph element with the response from the server
-                    document.getElementById('result').innerText = data.text_result;
-                    this.innerText = data.button_text;
-                    this.setAttribute('data-value', data.button_value);
+                    if (data.hasOwnProperty('on_off_button_status')){
+                        tradingLoopStatus.innerText = 'Status: ' + data.on_off_button_status;
+                    }
+                    if(data.hasOwnProperty('on_off_button_text')){
+                        onOffButton.innerText = data.on_off_button_text;
+                    }
+                    if(data.hasOwnProperty('on_off_button_value')){
+                        onOffButton.setAttribute('data-value', data.on_off_button_value);
+                    }
                 })
                 .catch(error => console.error('Error:', error));
             });
+            
+            const loginButton = document.getElementById('loginButton');
+            const loginStatus = document.getElementById('login-status');
+
+            loginButton.addEventListener('click', () => {
+                strBtnValue = loginButton.getAttribute('data-value').toLowerCase()
+                console.log(strBtnValue)
+                logUrl = ''
+
+                if (strBtnValue === 'false') {
+                    logUrl = '/login_xtb_api';
+                } else {
+                    logUrl = '/logout_xtb_api';
+                }
+                console.log(logUrl)
+                // When the button is clicked, send a POST request to the server
+                fetch(logUrl, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log("data from response of loginButton click:")
+                    console.log(data)
+
+                    if (data.hasOwnProperty('login_button_status')){
+                        loginStatus.innerText = 'Status: ' + data.login_button_status;
+                    }
+                    if(data.hasOwnProperty('login_button_text')){
+                        loginButton.innerText = data.login_button_text;
+                    }
+                    if(data.hasOwnProperty('login_button_value')){
+                        loginButton.setAttribute('data-value', data.login_button_value);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            });
+
         </script>
     </body>
 </html>
