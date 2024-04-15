@@ -14,7 +14,13 @@ class TradingLoop:
         ### starting values ###
         self.running = False
         self.runningLock = Lock()
-        self.loopThread = Thread(target=self.loop)
+        self.tradingLoopThread = Thread(target=self.tradingLoop)
+
+        self.isLogged = False
+        self.isLoggedLock = Lock()
+
+        self.pingloopThread = Thread(target=self.pingLoop)
+
 
         self.xtbRequest = XTBRequests(symbol)
         self.strategy = HeikinAshiMovingAverage(useSR=False, useUpdateSl=False, uselongTermMA=False)
@@ -22,6 +28,40 @@ class TradingLoop:
 
         self._CetCestTimezone = pytz.timezone("Europe/Paris") # it is a CET/CEST timezone
 
+    def login(self):
+        print("login func")
+        response = self.xtbRequest.login()
+        if response["status"] == True:
+            self.set_isLogged(True)
+            self.pingloopThread.start()
+        else:
+            print(f"command sent: 'login'")
+            print(f'Error code: {response["errorCode"]}')
+            print(f'Error description: {response["errorDescr"]}')
+            self.stopPingLoop()
+    
+    def logout(self):
+        self.xtbRequest.logout()
+        self.set_isLogged(False)
+        print('logout done!')
+
+    def pingLoop(self):
+        # while self.get_isLogged(): #TODO: dev here
+        #     if(isTimeToPing):
+        #         response = self.xtbRequest.ping()
+        #         if response["status"] != True:
+        #             self.set_isLogged(False)
+                    
+
+
+    def set_isLogged(self, value:bool):
+        with self.isLoggedLock:
+             self.isLogged = value
+
+    def get_isLogged(self):
+        with self.isLoggedLock:
+            return self.isLogged
+    
     def get_running(self) -> bool:
         with self.runningLock:
             return self.running
@@ -30,16 +70,21 @@ class TradingLoop:
         with self.runningLock:
             self.running = _running
 
-    def runLoop(self):
+    def runTradingLoop(self):
         self.set_running(True)
-        self.loopThread.start()
+        self.tradingLoopThread.start()
 
-    def stopLoop(self):
+    def stopTradingLoop(self):
         self.set_running(False)
-        self.loopThread.join()
-        self.loopThread = Thread(target=self.loop)
+        self.tradingLoopThread.join()
+        self.tradingLoopThread = Thread(target=self.tradingLoop)
 
-    def loop(self):
+    def stopPingLoop(self):
+        self.set_isLogged(False)
+        self.pingloopThread.join()
+        self.pingloopThread = Thread(target=self.pingLoop)
+
+    def tradingLoop(self):
 
         last_hour = datetime.now(self._CetCestTimezone).now().hour
         slInPips, tpInPips, maxSlInPips, maxTpInPips = 0, 0, 0, 0
@@ -51,7 +96,7 @@ class TradingLoop:
         response = self.xtbRequest.login()
         if response and response["status"] == True:
             
-            observation = self.xtbRequest.getLastNCandlesH4(nCandles=100)
+            observation = self.xtbRequest.getLastNCandlesH4(nCandles=100, maPeriod=50)
 
             while self.get_running():
 

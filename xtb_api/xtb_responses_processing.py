@@ -1,10 +1,14 @@
 import pandas as pd
 
-def processListOfCandlesFromXtb(candlesList):
+def processListOfCandlesFromXtb(candlesList, maPeriod=0):
     open = close = low = high = []
     for candle in candlesList:
         open.append(candle['open'])
         close.append(candle['close']+candle['open'])
         high.append(candle['high']+candle['open'])
         low.append(candle['low']+candle['open'])
-    return pd.DataFrame({'open':open, 'close':close, 'high':high, 'low':low})
+
+    df = pd.DataFrame({'open':open, 'close':close, 'high':high, 'low':low})
+    if 0 < maPeriod:
+        df["shortTermMA"] = df["close"].rolling(window=maPeriod).mean() # add moving average 50
+    return df

@@ -32,7 +32,7 @@ class XTBRequests():
                 config[name] = var.strip('\n')
         return config
     
-    def sendCommand(self, command:dict):
+    def sendCommand(self, command:dict, returnAll=False):
         request = json.dumps(command).encode("UTF-8")
         self.ssock.send(request)
         END = b'\n\n'
@@ -43,16 +43,12 @@ class XTBRequests():
             if END in chunk: break
 
         jsonObject:dict = json.loads(response_buffer.decode())
+        return jsonObject
 
-        if jsonObject["status"] == True:
-            return jsonObject
-        else:
-            print(f"command sent: {command['command']}")
-            print(f'Error code: {jsonObject["errorCode"]}')
-            print(f'Error description: {jsonObject["errorDescr"]}')
-            return {}
-
-
+    def ping(self):
+        command = {"command": "ping"}
+        jsonObject = self.sendCommand(command)
+        return jsonObject
 
     def login(self):
         config = self.readConfig()
@@ -66,6 +62,10 @@ class XTBRequests():
         jsonObject = self.sendCommand(command)
         return jsonObject
     
+    def logout(self):
+        command = {"command": "logout"}
+        self.sendCommand(command)
+    
 
     def getServerTime(self):
         command = {"command": "getServerTime"}
@@ -75,7 +75,7 @@ class XTBRequests():
         return datetime_object
         
 
-    def getLastNCandlesH4(self, nCandles=100):
+    def getLastNCandlesH4(self, nCandles=100, maPeriod=50):
         currentDatetime = datetime.now()
         delta = timedelta(days=50) 
         new_datetime = currentDatetime - delta # 2 mois en arrière
@@ -92,8 +92,12 @@ class XTBRequests():
         }
         jsonObject = self.sendCommand(command)
         listOfCandles = jsonObject["returnData"]["rateInfos"]
-        listOfCandles = listOfCandles[-nCandles:]
-        return processListOfCandlesFromXtb(listOfCandles)
+    
+        if nCandles+maPeriod <= len(listOfCandles):
+            data = processListOfCandlesFromXtb(listOfCandles, maPeriod)
+            return data.iloc[-nCandles:]
+        else:
+            return processListOfCandlesFromXtb(listOfCandles[-nCandles:])
        
         
     def openBuyPosition(self, price:float, sl:float, tp:float, vol:float):
