@@ -1,6 +1,6 @@
 import ssl
 import json
-import socket
+import socket 
 from datetime import datetime, timedelta
 from xtb_api.xtb_responses_processing import processListOfCandlesFromXtb
 
@@ -17,10 +17,11 @@ class XTBRequests():
         self.host = 'xapi.xtb.com'
         self.port = 5124 # port for DEMO account
 
-        self.sock  = socket.create_connection((self.host, self.port))
-        self.ssock = ssl.create_default_context().wrap_socket(self.sock, server_hostname=self.host)
-
+        self.sock:socket.socket
+        self.ssock:ssl.SSLSocket
+      
     def closeSocket(self):
+        self.ssock.shutdown(2)
         self.ssock.close()
         self.sock.close()
 
@@ -51,6 +52,9 @@ class XTBRequests():
         return jsonObject
 
     def login(self):
+        self.sock = socket.create_connection((self.host, self.port))
+        self.ssock = ssl.create_default_context().wrap_socket(self.sock, server_hostname=self.host)
+
         config = self.readConfig()
         command = {
             "command": "login",
@@ -65,6 +69,7 @@ class XTBRequests():
     def logout(self):
         command = {"command": "logout"}
         self.sendCommand(command)
+        self.closeSocket()
     
 
     def getServerTime(self):

@@ -49,8 +49,9 @@ def index_page():
         'value': botRunning,
         'text': 'Stop bot' if botRunning else 'Run bot', 
         'status': 'Bot is running.' if botRunning else 'Bot is not running.'
-    }   
-    return render_template("index.html", login_btn=login_btn, on_off_btn=on_off_btn)
+    }  
+    lastTimePinged = tradingLoop.lastTimePinged 
+    return render_template("index.html", login_btn=login_btn, on_off_btn=on_off_btn, lastTimePinged=lastTimePinged)
 
 
 @app.route("/run_trading_bot", methods=["POST"])
@@ -69,7 +70,7 @@ def run_trading_bot():
             print("button value: ", request.json['value'])
 
             if (buttonValue == False) and (botRunning == True): # buttonValue == False == STOP bot
-                # tradingLoop.stopLoop()
+                # tradingLoop.stopTradingLoop()
                 response = {
                     'on_off_button_value' : True,
                     'on_off_button_text'  : 'Run it!',
@@ -77,14 +78,14 @@ def run_trading_bot():
                 }
             
             elif (buttonValue == True) and (botRunning == False): # buttonValue == True == RUN bot
-                # tradingLoop.runLoop()
+                # tradingLoop.runTradingLoop()
                 response = {
                     'on_off_button_value' : False,
                     'on_off_button_text'  : 'Stop it!',
                     'on_off_button_status': 'Bot launched.'
                 }
             
-            elif (buttonValue == False) and (botRunning == False): # TODO: continue devs
+            elif (buttonValue == False) and (botRunning == False):
                 response = {
                     'on_off_button_value' : True,
                     'on_off_button_text'  : 'Run it!',
