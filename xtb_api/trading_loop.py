@@ -1,21 +1,21 @@
 import pytz
 from datetime import datetime 
+import time
 from threading import Lock
 from concurrent.futures import ThreadPoolExecutor, Future
 import sys; sys.path.insert(1, '..')
 from xtb_api.xtb_requests import XTBRequests
 from reinforcement_learning.trading_agent.actor_critic.agent import Agent
 from strategies.Heikin_Ashi_Moving_Average_Strategy import HeikinAshiMovingAverage
-# from datetime import datetime, timedelta
 
 
 class TradingLoop:
-    def __init__(self, symbol='US500'):
+    def __init__(self, clientSocket, symbol='US500'):
         ### starting values ###
         self.running = False
         self.runningLock = Lock()
         # self.tradingLoopThread = Thread(target=self.tradingLoop)
-
+        self.clientSocket = clientSocket
         self.isLogged = False
         self.isLoggedLock = Lock()
 
@@ -23,7 +23,7 @@ class TradingLoop:
         self.tradingExecution = Future()
 
         # self.pingloopThread = Thread(target=self.pingLoop)
-        self.pool = ThreadPoolExecutor(max_workers=2)
+        self.pool = ThreadPoolExecutor(max_workers=4)
 
         self.xtbRequest = XTBRequests(symbol)
         self.strategy = HeikinAshiMovingAverage(useSR=False, useUpdateSl=False, uselongTermMA=False)
@@ -32,7 +32,7 @@ class TradingLoop:
         self._CetCestTimezone = pytz.timezone("Europe/Paris") # it is a CET/CEST timezone
 
     def login(self):
-        print("login func")
+        print("TradingLoop::login func")
         response = self.xtbRequest.login()
         if response["status"] == True:
             self.set_isLogged(True)
@@ -45,7 +45,7 @@ class TradingLoop:
             # self.stopPingLoop()
             self.set_isLogged(False)
             self.xtbRequest.closeSocket()
-            self.pingExecution.result(timeout=5)
+            self.pingExecution.result(timeout=2)
     
     def logout(self):
         self.xtbRequest.logout()
@@ -54,20 +54,25 @@ class TradingLoop:
 
 
     def pingLoop(self):
-        last_time = datetime.now(self._CetCestTimezone)
 
         while self.get_isLogged(): #TODO: dev here
-            actual_time = datetime.now(self._CetCestTimezone)
-            if(actual_time.minute%10==0 and actual_time!=last_time):
-                last_time=actual_time
-                response = self.xtbRequest.ping()
-                if response["status"] != True:
-                    self.set_isLogged(False)
+            # actual_time = datetime.now(self._CetCestTimezone)
+            # if(actual_time.minute%2==0 and actual_time!=self.lastTimePinged):
+            response = self.xtbRequest.ping()
+            lastTimePinged = datetime.now(self._CetCestTimezone)
+            print(f'ping status: {response["status"]}')
+            if response["status"] == True:
+                self.clientSocket.emit('ping', str(lastTimePinged))
+                time.sleep(60*9) # sleep 9 minites
+                print('ping time elapsed')
+            else:
+                self.set_isLogged(False)
+
 
 
     def set_isLogged(self, value:bool):
         with self.isLoggedLock:
-             self.isLogged = value
+            self.isLogged = value
 
     def get_isLogged(self):
         with self.isLoggedLock:
@@ -82,14 +87,15 @@ class TradingLoop:
             self.running = _running
 
     def runTradingLoop(self):
+        print("TradingLoop::runTradingLoop func")
         self.set_running(True)
-        self.tradingExecution = self.pool.submit(self.pingLoop)
+        self.tradingExecution = self.pool.submit(self.tradingLoop)
 
         # self.tradingLoopThread.start()
 
     def stopTradingLoop(self):
         self.set_running(False)
-        self.tradingExecution.result(timeout=5)
+        self.tradingExecution.result()
         # self.tradingLoopThread.join()
         # self.tradingLoopThread = Thread(target=self.tradingLoop)
 
@@ -103,30 +109,31 @@ class TradingLoop:
         last_hour = datetime.now(self._CetCestTimezone).now().hour
         slInPips, tpInPips, maxSlInPips, maxTpInPips = 0, 0, 0, 0
         entryPrice = 0.0
-        entryDate = ''
         inPosition = False
         priceAlreadySeen = False
-
-        response = self.xtbRequest.login()
-        if response and response["status"] == True:
+        print('entering trading loop')
+        if self.get_isLogged():
             
             observation = self.xtbRequest.getLastNCandlesH4(nCandles=100, maPeriod=50)
 
             while self.get_running():
 
                 if not priceAlreadySeen:
+                    print('checking new price')
                     if not inPosition:
                         capital = self.xtbRequest.getBalance() # TODO: change "balance" to "equity" in the function
-                        inPosition, maxSlInPips, maxTpInPips, entryPrice, entryDate = self.strategy.checkIfCanEnterPosition(df=observation, i=-1, capital=capital)
+                        inPosition, maxSlInPips, maxTpInPips, entryPrice, _ = self.strategy.checkIfCanEnterPosition(df=observation, i=-1, capital=capital)
                         if inPosition: 
+                            print('has entered position')
                             slInPips, tpInPips = self.agent.updateSlAndTp(observation, maxSlInPips, maxTpInPips) # choose action
                             sl, tp = entryPrice+slInPips, entryPrice+tpInPips
                             _ = self.xtbRequest.openBuyPosition(entryPrice, sl=sl, tp=tp, vol=0.01)
                     else:
+                        print('checking position status')
                         self.currentPrice = observation["close"].iloc[-1]
                         status = self.xtbRequest.checkPositionStatus()
-                        closed, profit = status
-                        if closed: 
+                        self.clientSocket.emit('trade_status', status)
+                        if status['closed']: 
                             inPosition = False
                             self.xtbRequest.positionId = 0
                         else:

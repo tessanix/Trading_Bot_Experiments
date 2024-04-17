@@ -1,14 +1,25 @@
 from flask import Flask, render_template, redirect, jsonify, session, request
 import sys; sys.path.insert(1, '..')
 from xtb_api.trading_loop import TradingLoop
+from flask_socketio import SocketIO
 
 app = Flask(__name__)
-tradingLoop = TradingLoop()
+socketio = SocketIO(app)
+
+tradingLoop = TradingLoop(socketio)
 
 app.secret_key = "your_secret_key_here"
 username = "123"
 password = "123"
 
+
+@socketio.on('connect')
+def handle_connect():
+    print('Client connected')
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('Client disconnected')
 
 @app.route("/", methods=["GET"])
 def home():
@@ -50,8 +61,7 @@ def index_page():
         'text': 'Stop bot' if botRunning else 'Run bot', 
         'status': 'Bot is running.' if botRunning else 'Bot is not running.'
     }  
-    lastTimePinged = tradingLoop.lastTimePinged 
-    return render_template("index.html", login_btn=login_btn, on_off_btn=on_off_btn, lastTimePinged=lastTimePinged)
+    return render_template("index.html", login_btn=login_btn, on_off_btn=on_off_btn)
 
 
 @app.route("/run_trading_bot", methods=["POST"])
@@ -64,50 +74,26 @@ def run_trading_bot():
     response = {}
 
     if isLogged:
-        if request.json != None:
-            buttonValue = bool(request.json['value']) # button on HTML page
-
-            print("button value: ", request.json['value'])
-
-            if (buttonValue == False) and (botRunning == True): # buttonValue == False == STOP bot
-                # tradingLoop.stopTradingLoop()
-                response = {
-                    'on_off_button_value' : True,
-                    'on_off_button_text'  : 'Run it!',
-                    'on_off_button_status': 'Bot stoped.'
-                }
-            
-            elif (buttonValue == True) and (botRunning == False): # buttonValue == True == RUN bot
-                # tradingLoop.runTradingLoop()
-                response = {
-                    'on_off_button_value' : False,
-                    'on_off_button_text'  : 'Stop it!',
-                    'on_off_button_status': 'Bot launched.'
-                }
-            
-            elif (buttonValue == False) and (botRunning == False):
-                response = {
-                    'on_off_button_value' : True,
-                    'on_off_button_text'  : 'Run it!',
-                    'on_off_button_status': 'Bot can\'t be stoped, he is already not running.'
-                }
-            
-            elif (buttonValue == True) and (botRunning == True):
-                response = {
-                    'on_off_button_value' : False,
-                    'on_off_button_text'  : 'Stop it!',
-                    'on_off_button_status': 'Bot can\'t be launched, he is already running.'
-                }
-            
-            else:
-                response['on_off_button_status'] = 'IDK'
-            
-        else: # Not logged
-             response = {
-                'on_off_button_value' : True,
+        if botRunning: 
+            print('stoping bot ...')
+            tradingLoop.stopTradingLoop()
+            response = {
                 'on_off_button_text'  : 'Run it!',
-                'on_off_button_status': 'You can\'t run the bot if you are not logged.'
+                'on_off_button_status': 'Bot stoped.'
             }
+        
+        else: #bot is not running
+            print('starting bot ...')
+            tradingLoop.runTradingLoop()
+            response = {
+                'on_off_button_text'  : 'Stop it!',
+                'on_off_button_status': 'Bot launched.'
+            } 
+    else: # Not logged
+        response = {
+            'on_off_button_text'  : 'Run it!',
+            'on_off_button_status': 'You can\'t run the bot if you are not logged.'
+        }
         
     return jsonify(response)
 
@@ -118,7 +104,6 @@ def login_xtb():
     tradingLoop.login()
     isLogged = tradingLoop.get_isLogged()
     return jsonify({
-        'login_button_value': isLogged,
         'login_button_text': 'Logout' if isLogged else 'Login', 
         'login_button_status': 'You are logged.' if isLogged else 'You are not logged.'
     })

@@ -77,7 +77,8 @@ class HeikinAshiMovingAverage(Strategy):
 
     def checkIfCanEnterPosition(self, df: pd.DataFrame, i: int, capital: float) -> tuple[bool, float, float, float, str]:
         inPosition, slInPips, tpInPips, entryPrice, entryDate = False, 0, 0, 0, ""
-        
+        if i==-1:
+            i = df.index[-1]
         allowedToTrade = True
         
         if self.uselongTermMA:

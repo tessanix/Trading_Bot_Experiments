@@ -156,11 +156,8 @@ class XTBRequests():
                 "orders": [self.positionId]
             }
         }
-
         jsonObject = self.sendCommand(command)
-        closed = jsonObject["returnData"][0]["closed"]
-        profit = jsonObject["returnData"][0]["profit"]
-        return (closed, profit)
+        return jsonObject["returnData"][0]
        
 
     def getBalance(self):
