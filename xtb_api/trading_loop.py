@@ -91,18 +91,10 @@ class TradingLoop:
         self.set_running(True)
         self.tradingExecution = self.pool.submit(self.tradingLoop)
 
-        # self.tradingLoopThread.start()
-
     def stopTradingLoop(self):
         self.set_running(False)
         self.tradingExecution.result()
-        # self.tradingLoopThread.join()
-        # self.tradingLoopThread = Thread(target=self.tradingLoop)
-
-    # def stopPingLoop(self):
-    #     self.set_isLogged(False)
-    #     self.pingloopThread.join()
-    #     self.pingloopThread = Thread(target=self.pingLoop)
+     
 
     def tradingLoop(self):
 

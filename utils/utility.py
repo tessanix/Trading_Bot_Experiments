@@ -1,3 +1,4 @@
+from operator import index
 import pandas as pd
 
 def between(a, min, max): 
@@ -11,8 +12,8 @@ def getSlInPipsForTrade(invested:float, pipValue:float, lotSize:float) -> float:
 def heikinashi(df: pd.DataFrame) -> pd.DataFrame:
     df['HA close']=(df['open']+ df['high']+ df['low']+df['close'])/4
     HA_open = []
-    for i in range(0, len(df)):
-        if i == 0:
+    for i in df.index:
+        if i == df.index[0]:
             HA_open.append( (df['open'][i] + df['close'][i] )/ 2)
         else:
             HA_open.append( (df['open'][i-1] + df['close'][i-1] )/ 2)
@@ -24,7 +25,7 @@ def heikinashi(df: pd.DataFrame) -> pd.DataFrame:
 
 def addHACandleColor(df: pd.DataFrame) -> pd.DataFrame:
     colors = []
-    for i in range(0, len(df)):
+    for i in df.index:
         color = "green" if df["HA open"][i] < df["HA close"][i] else "red"
         colors.append(color)
     df["HA color"] = colors

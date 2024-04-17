@@ -97,12 +97,12 @@ class XTBRequests():
         }
         jsonObject = self.sendCommand(command)
         listOfCandles = jsonObject["returnData"]["rateInfos"]
-    
+        digits = jsonObject["returnData"]["digits"]
         if nCandles+maPeriod <= len(listOfCandles):
-            data = processListOfCandlesFromXtb(listOfCandles, maPeriod)
+            data = processListOfCandlesFromXtb(listOfCandles, digits, maPeriod)
             return data.iloc[-nCandles:]
         else:
-            return processListOfCandlesFromXtb(listOfCandles[-nCandles:])
+            return processListOfCandlesFromXtb(listOfCandles[-nCandles:], digits)
        
         
     def openBuyPosition(self, price:float, sl:float, tp:float, vol:float):
