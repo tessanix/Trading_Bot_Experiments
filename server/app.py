@@ -61,7 +61,8 @@ def index_page():
         'text': 'Stop bot' if botRunning else 'Run bot', 
         'status': 'Bot is running.' if botRunning else 'Bot is not running.'
     }  
-    return render_template("index.html", login_btn=login_btn, on_off_btn=on_off_btn)
+    ping_status = f'Last time pinged: {tradingLoop.lastTimePinged}'
+    return render_template("index.html", login_btn=login_btn, on_off_btn=on_off_btn, ping_status=ping_status)
 
 
 @app.route("/run_trading_bot", methods=["POST"])

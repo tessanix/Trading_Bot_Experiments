@@ -21,7 +21,7 @@ class TradingLoop:
 
         self.pingExecution = Future()
         self.tradingExecution = Future()
-
+        self.lastTimePinged = None
         # self.pingloopThread = Thread(target=self.pingLoop)
         self.pool = ThreadPoolExecutor(max_workers=4)
 
@@ -59,10 +59,10 @@ class TradingLoop:
             # actual_time = datetime.now(self._CetCestTimezone)
             # if(actual_time.minute%2==0 and actual_time!=self.lastTimePinged):
             response = self.xtbRequest.ping()
-            lastTimePinged = datetime.now(self._CetCestTimezone)
+            self.lastTimePinged = datetime.now(self._CetCestTimezone)
             print(f'ping status: {response["status"]}')
             if response["status"] == True:
-                self.clientSocket.emit('ping', str(lastTimePinged))
+                self.clientSocket.emit('ping', str(self.lastTimePinged))
                 time.sleep(60*9) # sleep 9 minites
                 print('ping time elapsed')
             else:
