@@ -43,8 +43,11 @@ def actorCritictrainingLoop(data: np.ndarray, strategy: Strategy, agent:Agent, p
             else:
                 observation_ = data[startIndex+i-candlesWindow:startIndex+i, :4]
                 
-                sl, tp = entryPrice+slInPips, entryPrice+tpInPips
                 currentPrice = observation_[-1, 0]
+                
+                sl = currentPrice+slInPips if currentPrice >= entryPrice else entryPrice+slInPips
+                tp = entryPrice+tpInPips
+
                 lose = currentPrice <= sl
                 win = tp <= currentPrice
                 if lose or win:

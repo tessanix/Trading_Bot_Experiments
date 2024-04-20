@@ -5,11 +5,11 @@ from tensorflow.python.keras.activations import leaky_relu, tanh
 from tensorflow.keras.layers import Dense, LSTM
 import tensorflow_probability as tfp
 
-def my_custom_leaky_relu(x):
-    return leaky_relu(x, alpha=0.2)
+# def my_custom_leaky_relu(x):
+#     return leaky_relu(x, alpha=0.2)
 
-def my_custom_tanh(x):
-    return 5*tanh(x)
+# def my_custom_tanh(x):
+#     return 4*tanh(x)
 
 class ActorCriticNetwork(Model):
     def __init__(self, lstm1_dims=256, lstm2_dims=128,  fc_dims1=64, fc_dims2=5,
@@ -27,7 +27,7 @@ class ActorCriticNetwork(Model):
         self.lstm1 = LSTM(self.lstm1_dims, return_sequences=True, activation='sigmoid')
         self.lstm2 = LSTM(self.lstm2_dims,  activation='tanh')
         self.fc1  = Dense(self.fc_dims1,  activation='tanh')
-        self.fc2  = Dense(self.fc_dims2,  activation=my_custom_tanh)
+        self.fc2  = Dense(self.fc_dims2,  activation='tanh')
         self.v   = Dense(1, trainable=True, activation=None)
 
     def call(self, state:tuple[tf.Tensor, tf.Tensor, tf.Tensor]):

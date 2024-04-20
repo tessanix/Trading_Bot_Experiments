@@ -37,32 +37,39 @@ class Agent:
         slAndTpInPips = tf.convert_to_tensor([[_maxSlInPips, _maxTpInPips]], dtype=tf.float32)
         observation   = tf.convert_to_tensor([_observation], dtype=tf.float32)
         entryPrice    = tf.convert_to_tensor([[_entryPrice]], dtype=tf.float32)
-
-        slInPips, tpInPips = self.choose_action((observation, slAndTpInPips, entryPrice))
+        # what we want :
+        # _maxSl < sl <= currentPrice
+        # currentPrice <= tp < _maxTp 
+        slInPipsPercent, tpInPipsPercent = self.choose_action((observation, slAndTpInPips, entryPrice))
         # slInPips and tpInPips belongs to ]-Inf, +Inf[ because sample of gaussian dist
-        
-        newTpInPips = tpInPips
-        if 0 < tpInPips <= 1:
-            newTpInPips = tpInPips*_maxTpInPips
-        elif tpInPips <= 0:
-            newTpInPips = _maxTpInPips
+        slInPipsPercent = tf.math.sigmoid(slInPipsPercent)
+        tpInPipsPercent = tf.math.sigmoid(tpInPipsPercent)
+
+        slInPips = slInPipsPercent*_maxSlInPips
+        tpInPips = tpInPipsPercent*_maxTpInPips
+
+        # newTpInPips = tpInPips
+        # if 0 < tpInPips <= 1:
+        #     newTpInPips = tpInPips*_maxTpInPips
+        # if tpInPips <= 0:
+        #     newTpInPips = _maxTpInPips
 
         # newTpInPips = tpInPips*_maxTpInPips if 0 < tpInPips else _maxTpInPips 
         # newTpInPips = _maxTpInPips if newTpInPips <= 0 
         # => newTpInPips belongs to [tpInPips*_maxTpInPips, _maxTpInPips] if 0 < tpInPips <= 1
         # => newTpInPips belongs to ]_maxTpInPips, tpInPips*_maxTpInPips] if  1 < tpInPips
 
-        newSlInPips = slInPips
+        # newSlInPips = slInPips
 
-        if _currentPrice-_entryPrice <= slInPips:
-            newSlInPips = 0
-        elif slInPips < _maxSlInPips:
-            newSlInPips = _maxSlInPips 
+        # if _currentPrice-_entryPrice <= slInPips:
+        #     newSlInPips = 0
+        # if slInPips < _maxSlInPips:
+        #     newSlInPips = _maxSlInPips 
        
         
         # slInPips = slInPips*(-_maxSlInPips) + _maxSlInPips if 0 < slInPips else max(slInPips, _maxSlInPips)
       
-        return newSlInPips, newTpInPips
+        return slInPips, tpInPips
     
     def learn(self, state:np.ndarray, reward, state_:np.ndarray, maxSlInPips, maxTpInPips, _entryPrice, done):
         # print(f'state shape: {state.shape}')
