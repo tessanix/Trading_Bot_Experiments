@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import pandas as pd
+import numpy as np
 
 class Strategy(ABC):
     def __init__(self):
@@ -7,6 +8,10 @@ class Strategy(ABC):
 
     @abstractmethod 
     def checkIfCanEnterPosition(self, df: pd.DataFrame, i: int, capital: float) -> tuple[bool, float, float, float, str]:
+        pass
+
+    @abstractmethod 
+    def checkIfCanEnterPosition_2(self, df: np.ndarray, capital: float) -> tuple[bool, float, float, float]:
         pass
 
     @abstractmethod 

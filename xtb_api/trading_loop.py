@@ -55,9 +55,7 @@ class TradingLoop:
 
     def pingLoop(self):
 
-        while self.get_isLogged(): #TODO: dev here
-            # actual_time = datetime.now(self._CetCestTimezone)
-            # if(actual_time.minute%2==0 and actual_time!=self.lastTimePinged):
+        while self.get_isLogged(): 
             response = self.xtbRequest.ping()
             self.lastTimePinged = datetime.now(self._CetCestTimezone)
             print(f'ping status: {response["status"]}')

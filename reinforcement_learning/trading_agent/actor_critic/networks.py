@@ -1,8 +1,15 @@
 import os
 import tensorflow as tf
 from tensorflow.python.keras import Model
+from tensorflow.python.keras.activations import leaky_relu, tanh
 from tensorflow.keras.layers import Dense, LSTM
 import tensorflow_probability as tfp
+
+def my_custom_leaky_relu(x):
+    return leaky_relu(x, alpha=0.2)
+
+def my_custom_tanh(x):
+    return 5*tanh(x)
 
 class ActorCriticNetwork(Model):
     def __init__(self, lstm1_dims=256, lstm2_dims=128,  fc_dims1=64, fc_dims2=5,
@@ -20,11 +27,11 @@ class ActorCriticNetwork(Model):
         self.lstm1 = LSTM(self.lstm1_dims, return_sequences=True, activation='sigmoid')
         self.lstm2 = LSTM(self.lstm2_dims,  activation='tanh')
         self.fc1  = Dense(self.fc_dims1,  activation='tanh')
-        self.fc2  = Dense(self.fc_dims2,  activation='tanh')
+        self.fc2  = Dense(self.fc_dims2,  activation=my_custom_tanh)
         self.v   = Dense(1, trainable=True, activation=None)
 
-    def call(self, state:tuple[tf.Tensor, tf.Tensor]):
-        marketPrice, slAndTp = state
+    def call(self, state:tuple[tf.Tensor, tf.Tensor, tf.Tensor]):
+        marketPrice, slAndTp, entryPrice = state
 
         # state shape will be: [batch, [open,high,low,close], N] == [batch, 4, N]
         # print(f"marketPrice shape: {marketPrice.shape}")
@@ -36,7 +43,7 @@ class ActorCriticNetwork(Model):
         # print(f"value1 shape: {value.shape}")
         value = self.lstm2(value) # shape == [batch, lstm2_dims]
 
-        value = tf.concat([value, slAndTp], axis=1)
+        value = tf.concat([value, slAndTp, entryPrice], axis=1)
 
         value = self.fc1(value) # shape == [batch, fc_dims1]
         # print(f"value2 shape: {value.shape}")

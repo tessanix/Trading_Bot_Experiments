@@ -1,15 +1,15 @@
-import pandas as pd
+import numpy as np
 import tensorflow as tf
 from tensorflow.python.keras.optimizer_v2.adam import Adam
 from reinforcement_learning.trading_agent.actor_critic.networks import ActorCriticNetwork
 
 
 class Agent:
-    def __init__(self, alpha=0.0003, gamma=0.99, chkpt_dir="model_x", name='trading_bot_AC'):
+    def __init__(self, alpha=0.0004, gamma=0.99, base_dir='trading_agent/actor_critic/tmp/', chkpt_dir="model_x", name='trading_bot_AC'):
         self.gamma = gamma
         self.action = None
 
-        self.actor_critic = ActorCriticNetwork(chkpt_dir=chkpt_dir, name=name)
+        self.actor_critic = ActorCriticNetwork(base_dir=base_dir, chkpt_dir=chkpt_dir, name=name)
         self.actor_critic.compile(optimizer=Adam(learning_rate=alpha)) # type: ignore
     
     def choose_action(self, observation):
@@ -32,32 +32,50 @@ class Agent:
         self.actor_critic.load_weights(self.actor_critic.checkpoint_file)
 
         
-    def updateSlAndTp(self, df:pd.DataFrame, _maxSlInPips:float, _maxTpInPips:float):
+    def updateSlAndTp(self, _observation:np.ndarray, _maxSlInPips:float, _maxTpInPips:float, _currentPrice:float, _entryPrice:float):
 
-        slAndTp      = tf.convert_to_tensor([[_maxSlInPips, _maxTpInPips]])
-        observation = tf.convert_to_tensor([df.to_numpy()])
+        slAndTpInPips = tf.convert_to_tensor([[_maxSlInPips, _maxTpInPips]], dtype=tf.float32)
+        observation   = tf.convert_to_tensor([_observation], dtype=tf.float32)
+        entryPrice    = tf.convert_to_tensor([[_entryPrice]], dtype=tf.float32)
 
-        sl, tp = self.choose_action((observation, slAndTp))
-        # tp belongs to [0, +inf[ maybe
-        # sl belongs to [0, +inf[ maybe
+        slInPips, tpInPips = self.choose_action((observation, slAndTpInPips, entryPrice))
+        # slInPips and tpInPips belongs to ]-Inf, +Inf[ because sample of gaussian dist
+        
+        newTpInPips = tpInPips
+        if 0 < tpInPips <= 1:
+            newTpInPips = tpInPips*_maxTpInPips
+        elif tpInPips <= 0:
+            newTpInPips = _maxTpInPips
 
-        tp = tp*_maxTpInPips if 0 < tp else _maxTpInPips
+        # newTpInPips = tpInPips*_maxTpInPips if 0 < tpInPips else _maxTpInPips 
+        # newTpInPips = _maxTpInPips if newTpInPips <= 0 
+        # => newTpInPips belongs to [tpInPips*_maxTpInPips, _maxTpInPips] if 0 < tpInPips <= 1
+        # => newTpInPips belongs to ]_maxTpInPips, tpInPips*_maxTpInPips] if  1 < tpInPips
 
-        sl = sl*(-_maxSlInPips) + _maxSlInPips if 0 < sl else max(sl, _maxSlInPips)
+        newSlInPips = slInPips
+
+        if _currentPrice-_entryPrice <= slInPips:
+            newSlInPips = 0
+        elif slInPips < _maxSlInPips:
+            newSlInPips = _maxSlInPips 
+       
+        
+        # slInPips = slInPips*(-_maxSlInPips) + _maxSlInPips if 0 < slInPips else max(slInPips, _maxSlInPips)
       
-        return sl, tp
+        return newSlInPips, newTpInPips
     
-    def learn(self, state, reward, state_, maxSlInPips, maxTpInPips, done):
+    def learn(self, state:np.ndarray, reward, state_:np.ndarray, maxSlInPips, maxTpInPips, _entryPrice, done):
         # print(f'state shape: {state.shape}')
         # print(f'state_ shape: {state_.shape}')
-        slAndTp = tf.convert_to_tensor([[maxSlInPips, maxTpInPips]], dtype=tf.float32)
-        state  = tf.convert_to_tensor([state.to_numpy()], dtype=tf.float32)
-        state_ = tf.convert_to_tensor([state_.to_numpy()], dtype=tf.float32)
-        reward = tf.convert_to_tensor([reward], dtype=tf.float32)
+        slAndTp    = tf.convert_to_tensor([[maxSlInPips, maxTpInPips]], dtype=tf.float32)
+        entryPrice = tf.convert_to_tensor([[_entryPrice]], dtype=tf.float32)
+        state      = tf.convert_to_tensor([state], dtype=tf.float32)
+        state_     = tf.convert_to_tensor([state_], dtype=tf.float32)
+        reward     = tf.convert_to_tensor([reward], dtype=tf.float32)
 
         with tf.GradientTape() as tape:
-            state_value, dist = self.actor_critic((state, slAndTp))
-            state_value_, _ = self.actor_critic((state_, slAndTp))
+            state_value, dist = self.actor_critic((state, slAndTp, entryPrice))
+            state_value_, _ = self.actor_critic((state_, slAndTp, entryPrice))
             state_value = tf.squeeze(state_value)
             state_value_ = tf.squeeze(state_value_)
 

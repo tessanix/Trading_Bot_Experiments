@@ -32,7 +32,7 @@ def actorCritictrainingLoop(df: pd.DataFrame, strategy: Strategy, agent:Agent, l
             if not inPosition:
                 inPosition, maxSlInPips, maxTpInPips, entryPrice, _ = strategy.checkIfCanEnterPosition(df.loc[startIndex+i-candlesWindow:startIndex+i], startIndex+i, capital)
                 if inPosition: 
-                    slInPips, tpInPips = agent.updateSlAndTp(observation, maxSlInPips, maxTpInPips) # choose action
+                    slInPips, tpInPips = agent.updateSlAndTp(observation.to_numpy(), maxSlInPips, maxTpInPips, entryPrice, entryPrice) # choose action
                     i+=1
                     reward -= 0.5
                 else: 
@@ -56,14 +56,14 @@ def actorCritictrainingLoop(df: pd.DataFrame, strategy: Strategy, agent:Agent, l
                     if i==1:
                         reward += (observation_["close"].iloc[-1] - entryPrice)/entryPrice # reward basé sur la variation du prix depuis entry_price
                         if not load_checkPoint:
-                            agent.learn(observation, reward, observation_, maxSlInPips, maxTpInPips, done)
+                            agent.learn(observation.to_numpy(), reward, observation_.to_numpy(), maxSlInPips, maxTpInPips, done)
 
                     else:
                         if not load_checkPoint:
-                            agent.learn(observation, reward, observation_, maxSlInPips, maxTpInPips, done)
+                            agent.learn(observation.to_numpy(), reward, observation_.to_numpy(), maxSlInPips, maxTpInPips, done)
                         reward += (observation_["close"].iloc[-1] - entryPrice)/entryPrice # reward basé sur la variation du prix depuis entry_price
 
-                    slInPips, tpInPips = agent.updateSlAndTp(observation_, maxSlInPips, maxTpInPips)
+                    slInPips, tpInPips = agent.updateSlAndTp(observation_.to_numpy(), maxSlInPips, maxTpInPips, currentPrice, entryPrice)
 
                     observation = observation_
                 i+=1
