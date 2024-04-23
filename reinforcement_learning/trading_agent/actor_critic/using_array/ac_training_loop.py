@@ -15,6 +15,7 @@ def actorCritictrainingLoop(data: np.ndarray, strategy: Strategy, agent:Agent, p
     lot_size = 0.01
     dataLength = len(data)
     episodeTrainedOn = 0
+    previousBestCap = capital
 
     for episode in range(n_games):
 
@@ -83,6 +84,10 @@ def actorCritictrainingLoop(data: np.ndarray, strategy: Strategy, agent:Agent, p
 
             if avg_score > best_score: 
                 best_score = avg_score
+                if save_model:
+                    agent.save_models()
+            elif episodeTrainedOn%20==0 and previousBestCap < capital:
+                previousBestCap = capital
                 if save_model:
                     agent.save_models()
 

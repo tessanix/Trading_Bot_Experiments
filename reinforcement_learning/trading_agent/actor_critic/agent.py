@@ -2,14 +2,17 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.keras.optimizer_v2.adam import Adam
 from reinforcement_learning.trading_agent.actor_critic.networks import ActorCriticNetwork
+from reinforcement_learning.trading_agent.actor_critic.encoderTransformerNetwork import ActorCriticNetworkTransformer
 
 
 class Agent:
-    def __init__(self, alpha=0.0004, gamma=0.99, base_dir='trading_agent/actor_critic/tmp/', chkpt_dir="model_x", name='trading_bot_AC'):
+    def __init__(self, alpha=0.0003, gamma=0.99, base_dir='trading_agent/actor_critic/tmp/', chkpt_dir="model_x", name='trading_bot_AC', transformer=False, transParams={}, norm=True):
         self.gamma = gamma
         self.action = None
+        self.norm = norm
 
-        self.actor_critic = ActorCriticNetwork(base_dir=base_dir, chkpt_dir=chkpt_dir, name=name)
+        self.actor_critic = ActorCriticNetworkTransformer(base_dir=base_dir, chkpt_dir=chkpt_dir, name=name, encoderParams=transParams) if transformer else ActorCriticNetwork(base_dir=base_dir, chkpt_dir=chkpt_dir, name=name)
+
         self.actor_critic.compile(optimizer=Adam(learning_rate=alpha)) # type: ignore
     
     def choose_action(self, observation):
@@ -31,8 +34,16 @@ class Agent:
         print("--- loading models ---")
         self.actor_critic.load_weights(self.actor_critic.checkpoint_file)
 
-        
+    def minMaxNorm(self, _min, _max, _data):
+        return (_data-_min)/(_max-_min)    
+    
     def updateSlAndTp(self, _observation:np.ndarray, _maxSlInPips:float, _maxTpInPips:float, _currentPrice:float, _entryPrice:float):
+        
+        if self.norm:
+            _entryPrice = self.minMaxNorm(350.0, 6000.0, _entryPrice)
+            _observation = self.minMaxNorm(350.0, 6000.0, _observation)
+            _maxSlInPips = _maxSlInPips/1000.0
+            _maxTpInPips = _maxTpInPips/1000.0
 
         slAndTpInPips = tf.convert_to_tensor([[_maxSlInPips, _maxTpInPips]], dtype=tf.float32)
         observation   = tf.convert_to_tensor([_observation], dtype=tf.float32)
@@ -42,8 +53,8 @@ class Agent:
         # currentPrice <= tp < _maxTp 
         slInPipsPercent, tpInPipsPercent = self.choose_action((observation, slAndTpInPips, entryPrice))
         # slInPips and tpInPips belongs to ]-Inf, +Inf[ because sample of gaussian dist
-        slInPipsPercent = tf.math.sigmoid(slInPipsPercent)
-        tpInPipsPercent = tf.math.sigmoid(tpInPipsPercent)
+        slInPipsPercent = 1000*tf.math.sigmoid(slInPipsPercent)
+        tpInPipsPercent = 1000*tf.math.sigmoid(tpInPipsPercent)
 
         slInPips = slInPipsPercent*_maxSlInPips
         tpInPips = tpInPipsPercent*_maxTpInPips
@@ -74,6 +85,14 @@ class Agent:
     def learn(self, state:np.ndarray, reward, state_:np.ndarray, maxSlInPips, maxTpInPips, _entryPrice, done):
         # print(f'state shape: {state.shape}')
         # print(f'state_ shape: {state_.shape}')
+
+        if self.norm:
+            _entryPrice = self.minMaxNorm(350.0, 6000.0, _entryPrice)
+            state = self.minMaxNorm(350.0, 6000.0, state)
+            state_ = self.minMaxNorm(350.0, 6000.0, state_)
+            maxSlInPips = maxSlInPips/1000.0
+            maxTpInPips = maxTpInPips/1000.0
+
         slAndTp    = tf.convert_to_tensor([[maxSlInPips, maxTpInPips]], dtype=tf.float32)
         entryPrice = tf.convert_to_tensor([[_entryPrice]], dtype=tf.float32)
         state      = tf.convert_to_tensor([state], dtype=tf.float32)

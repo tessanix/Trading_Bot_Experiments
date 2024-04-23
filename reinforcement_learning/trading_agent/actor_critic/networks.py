@@ -1,7 +1,7 @@
 import os
 import tensorflow as tf
 from tensorflow.python.keras import Model
-from tensorflow.python.keras.activations import leaky_relu, tanh
+# from tensorflow.python.keras.activations import leaky_relu, tanh
 from tensorflow.keras.layers import Dense, LSTM
 import tensorflow_probability as tfp
 
@@ -12,7 +12,7 @@ import tensorflow_probability as tfp
 #     return 4*tanh(x)
 
 class ActorCriticNetwork(Model):
-    def __init__(self, lstm1_dims=256, lstm2_dims=128,  fc_dims1=64, fc_dims2=5,
+    def __init__(self, lstm1_dims=512, lstm2_dims=256,  fc_dims1=128, fc_dims2=5,
                 base_dir='trading_agent/actor_critic/tmp/', chkpt_dir='model_x', name='trading_bot_AC',):
         super(ActorCriticNetwork, self).__init__()
         self.lstm1_dims = lstm1_dims
