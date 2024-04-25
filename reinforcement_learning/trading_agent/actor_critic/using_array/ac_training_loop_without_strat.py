@@ -37,8 +37,8 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
             if not inPosition:
                 entryPrice = observation[-1, 0]
                 maxSlInPips = -utility.getSlInPipsForTrade(invested=capital*maxRisk, pipValue=pipValue, lotSize=0.01)
-
-                action = agent.choose_action(observation, maxSlInPips, entryPrice) # choose action
+                action_mask = np.array([[True, False, True]])
+                action = agent.choose_action(observation, maxSlInPips, entryPrice, action_mask) # choose action
 
                 actionList.append(tf.get_static_value(action))
                 i+=1
@@ -59,7 +59,7 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
                         reward += (currentPrice - entryPrice) # reward basé sur la variation du prix depuis entry_price
 
                 elif action == 1: # exit market
-                    reward = -10.0
+                    reward = -50.0
                     done = True
 
                 else: # do nothing
@@ -67,7 +67,7 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
                     done = True
                 
                 
-                agent.learn(observation, reward, observation_, maxSlInPips, done, entryPrice)
+                agent.learn(observation, reward, observation_, maxSlInPips, done, entryPrice, action_mask)
                 observation = observation_
                 score_this_ep += reward
 
@@ -77,13 +77,13 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
                 i+=1
                 observation_ = data[startIndex+i-candlesWindow:startIndex+i, :4]
                 currentPrice = observation_[-1, 0]
-
-                action = agent.choose_action(observation, maxSlInPips, entryPrice)
+                action_mask = np.array([[False, True, True]])
+                action = agent.choose_action(observation, maxSlInPips, entryPrice, action_mask)
                 actionList.append(tf.get_static_value(action))
             
 
                 if action == 0: # enter market
-                    reward = -10.0
+                    reward = -50.0
                     done = True
 
                 elif action == 1: # exit market
@@ -98,7 +98,7 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
                     # reward += 0.0
                     # done = True
                 
-                agent.learn(observation, reward, observation_, maxSlInPips, done, entryPrice)
+                agent.learn(observation, reward, observation_, maxSlInPips, done, entryPrice, action_mask)
                 observation = observation_
                 score_this_ep += reward
 
@@ -106,7 +106,7 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
         score_history.append(score_this_ep)
         avg_score = np.mean(score_history[-80:])
 
-        if avg_score > best_score: #and len(score_history) > 10: 
+        if avg_score > best_score and len(score_history) > 10: 
             best_score = avg_score
             if save_model:
                 agent.save_models()

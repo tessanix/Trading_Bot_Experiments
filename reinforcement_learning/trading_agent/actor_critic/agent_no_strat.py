@@ -15,7 +15,7 @@ class Agent:
 
         self.actor_critic.compile(optimizer=Adam(learning_rate=alpha)) 
     
-    def choose_action(self, _observation:np.ndarray, _maxSlInPips:float, _entryPrice:float):
+    def choose_action(self, _observation:np.ndarray, _maxSlInPips:float, _entryPrice:float, action_mask):
         if self.norm:
             _observation = self.minMaxNorm(350.0, 6000.0, _observation)
             _entryPrice = self.minMaxNorm(350.0, 6000.0, _entryPrice)
@@ -25,7 +25,7 @@ class Agent:
         slAndTpInPips = tf.convert_to_tensor([[_maxSlInPips]], dtype=tf.float32)
         entryPrice    = tf.convert_to_tensor([[_entryPrice]], dtype=tf.float32)
         # print(f"observation shape: {observation.shape}")
-        _, dist = self.actor_critic((observation, slAndTpInPips, entryPrice))    
+        _, dist = self.actor_critic((observation, slAndTpInPips, entryPrice), mask=action_mask)    
        
         action = dist.sample()
         # print(f"action shape: {action}")
@@ -45,7 +45,7 @@ class Agent:
         return (_data-_min)/(_max-_min)    
     
     
-    def learn(self, state:np.ndarray, reward, state_:np.ndarray, maxSlInPips, _entryPrice, done):
+    def learn(self, state:np.ndarray, reward, state_:np.ndarray, maxSlInPips, _entryPrice, done, action_mask):
         # print(f'state shape: {state.shape}')
         # print(f'state_ shape: {state_.shape}')
 
@@ -62,8 +62,8 @@ class Agent:
         reward     = tf.convert_to_tensor([reward], dtype=tf.float32)
 
         with tf.GradientTape() as tape:
-            state_value, dist = self.actor_critic((state, slAndTp, entryPrice))
-            state_value_, _ = self.actor_critic((state_, slAndTp, entryPrice))
+            state_value, dist = self.actor_critic((state, slAndTp, entryPrice), mask=action_mask)
+            state_value_, _ = self.actor_critic((state_, slAndTp, entryPrice), mask=action_mask)
             state_value = tf.squeeze(state_value)
             state_value_ = tf.squeeze(state_value_)
 

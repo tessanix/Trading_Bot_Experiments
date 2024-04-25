@@ -5,7 +5,7 @@ from tensorflow.keras.layers import MultiHeadAttention
 from tensorflow.keras.layers import LayerNormalization, Layer, Dense, ReLU
 from tensorflow.python.keras import Model
 import tensorflow_probability as tfp
-from tensorflow.python.keras.activations import tanh
+from tensorflow.python.keras.activations import tanh, softmax
 
 
 # https://machinelearningmastery.com/implementing-the-transformer-encoder-from-scratch-in-tensorflow-and-keras/
@@ -166,6 +166,21 @@ class ActorCriticNetworkTransformer(Model):
 
         return v, dist
     
+def partial_softmax(dividende, divisor_tensor):
+    # return tf.exp(dividende) / tf.reduce_sum(tf.exp(divisor_tensor), keepdims=True)
+    return np.exp(dividende) / np.sum(np.exp(divisor_tensor))
+
+def softmax_filtered(input, mask):
+    divisor_tensor = tf.boolean_mask(input, mask)
+    input = tf.make_ndarray(input)
+    l = [[]]
+    for i, m in enumerate(mask[0]):
+        if m == True:
+            l[0].append(partial_softmax(input[0][i], divisor_tensor))
+        else: 
+            l[0].append(0)
+
+    return np.array(l)
 
 class ActorCriticNetworkTransformerCategorical(Model):
     def __init__(self,  fc_dims1=1, fc_dims2=128, fc_dims3=3, base_dir='trading_agent/actor_critic/tmp/', chkpt_dir='model_x', name='trading_bot_AC', encoderParams={}):
@@ -182,11 +197,11 @@ class ActorCriticNetworkTransformerCategorical(Model):
         self.encoder = Encoder(**encoderParams)
         self.fc1  = Dense(self.fc_dims1,  activation='relu')
         self.fc2  = Dense(self.fc_dims2,  activation='relu')
-        self.fc3  = Dense(self.fc_dims3,  activation='softmax')
+        self.fc3  = Dense(self.fc_dims3,  activation=None)
 
         self.v    = Dense(1, trainable=True, activation=None)
 
-    def call(self, state:tuple[tf.Tensor, tf.Tensor, tf.Tensor]):
+    def call(self, state:tuple[tf.Tensor, tf.Tensor, tf.Tensor], mask:np.ndarray):
         marketPrice, slAndTp, entryPrice = state
 
         # state shape will be: [batch, [open,high,low,close], N] == [batch, 4, N]
@@ -205,8 +220,26 @@ class ActorCriticNetworkTransformerCategorical(Model):
         # print(f"value2 shape: {value.shape}")
         value = self.fc2(value)    # shape == [batch, fc_dims2]
         pi = self.fc3(value)    # shape == [batch, fc_dims3]
-
+        # pi = softmax(tf.boolean_mask(pi, mask))
+        pi = softmax_filtered(pi, mask)
         dist = tfp.distributions.Categorical(probs=pi)
         v = self.v(value)
 
         return v, dist
+    
+
+
+# def softmax_filtered(input, mask):
+
+#     def partial_softmax(dividende, divisor_tensor):
+#         return tf.exp(dividende) / tf.reduce_sum(tf.exp(divisor_tensor), keepdims=True)
+    
+#     divisor_tensor = tf.boolean_mask(input, mask)
+#     l = []
+#     for i, m in enumerate(mask):
+#         if m == True:
+#             l.append(partial_softmax(input[i], divisor_tensor))
+#         else: 
+#             l.append(0)
+
+#     return tf.constant([l])
