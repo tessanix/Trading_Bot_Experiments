@@ -53,8 +53,13 @@ class Agent:
         # currentPrice <= tp < _maxTp 
         slInPipsPercent, tpInPipsPercent = self.choose_action((observation, slAndTpInPips, entryPrice))
         # slInPips and tpInPips belongs to ]-Inf, +Inf[ because sample of gaussian dist
-        slInPipsPercent = 1000*tf.math.sigmoid(slInPipsPercent)
-        tpInPipsPercent = 1000*tf.math.sigmoid(tpInPipsPercent)
+
+        # slInPipsPercent = 1000*tf.math.sigmoid(slInPipsPercent)
+        # tpInPipsPercent = 1000*tf.math.sigmoid(tpInPipsPercent)
+        print(f"slInPipsPercent:{slInPipsPercent}, tpInPipsPercent{tpInPipsPercent}")
+        
+        slInPipsPercent = 1000*slInPipsPercent
+        tpInPipsPercent = 1000*tpInPipsPercent
 
         slInPips = slInPipsPercent*_maxSlInPips
         tpInPips = tpInPipsPercent*_maxTpInPips

@@ -46,7 +46,7 @@ def actorCritictrainingLoop(data: np.ndarray, strategy: Strategy, agent:Agent, p
                 
                 currentPrice = observation_[-1, 0]
                 
-                sl = currentPrice+slInPips if currentPrice >= entryPrice else entryPrice+slInPips
+                sl = entryPrice+slInPips #currentPrice+slInPips if currentPrice >= entryPrice else entryPrice+slInPips
                 tp = entryPrice+tpInPips
 
                 lose = currentPrice <= sl
@@ -62,12 +62,12 @@ def actorCritictrainingLoop(data: np.ndarray, strategy: Strategy, agent:Agent, p
                 else:
                     if i==1:
                         reward += (currentPrice - entryPrice)/entryPrice # reward basé sur la variation du prix depuis entry_price
-                        if not load_checkPoint:
-                            agent.learn(observation, reward, observation_, maxSlInPips, maxTpInPips, done, entryPrice)
+                        # if not load_checkPoint:
+                        agent.learn(observation, reward, observation_, maxSlInPips, maxTpInPips, done, entryPrice)
 
                     else:
-                        if not load_checkPoint:
-                            agent.learn(observation, reward, observation_, maxSlInPips, maxTpInPips, done, entryPrice)
+                        # if not load_checkPoint:
+                        agent.learn(observation, reward, observation_, maxSlInPips, maxTpInPips, done, entryPrice)
                         reward += (currentPrice - entryPrice)/entryPrice # reward basé sur la variation du prix depuis entry_price
 
                     slInPips, tpInPips = agent.updateSlAndTp(observation_, maxSlInPips, maxTpInPips, currentPrice, entryPrice)
@@ -80,20 +80,20 @@ def actorCritictrainingLoop(data: np.ndarray, strategy: Strategy, agent:Agent, p
         if inPosition:
             episodeTrainedOn+=1
             score_history.append(reward)
-            avg_score = np.mean(score_history[-100:])
+            avg_score = np.mean(score_history[-50:])
 
-            if avg_score > best_score: 
+            if avg_score > best_score and len(score_history) > 10: 
                 best_score = avg_score
                 if save_model:
                     agent.save_models()
-            elif episodeTrainedOn%20==0 and previousBestCap < capital:
-                previousBestCap = capital
-                if save_model:
-                    agent.save_models()
+            # elif episodeTrainedOn%20==0 and previousBestCap < capital:
+            #     previousBestCap = capital
+            #     if save_model:
+            #         agent.save_models()
 
             slList = [ round(elem,2) for elem in slList ][-10:]
             tpList = [ round(elem,2) for elem in tpList ][-10:]
-            print(f"episode:{episode}, capital:{capital:.2f}, ep. trained on:{episodeTrainedOn}, slInPips:{slList}, tpInPips:{tpList}, score:{reward:.3f}, avg_score:{avg_score:.3f}, nb iter:{i}")
+            print(f"episode:{episode}, capital:{capital:.2f}, episodeTrainedOn:{episodeTrainedOn}, slInPips:{slList}, tpInPips:{tpList}, score:{reward:.3f}, avg_score:{avg_score:.3f}, nb iter:{i}")
 
 
     return score_history

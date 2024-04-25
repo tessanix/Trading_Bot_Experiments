@@ -130,8 +130,8 @@ class ActorCriticNetworkTransformer(Model):
         self.checkpoint_file = os.path.join(self.base_dir, self.checkpoint_dir, name)
 
         self.encoder = Encoder(**encoderParams)
-        self.fc1  = Dense(self.fc_dims1,  activation='relu')
-        self.fc2  = Dense(self.fc_dims2,  activation=lambda x:3*tanh(x))
+        self.fc1  = Dense(self.fc_dims1,  activation='tanh')
+        self.fc2  = Dense(self.fc_dims2,  activation='sigmoid')
         self.v    = Dense(1, trainable=True, activation=None)
 
     def call(self, state:tuple[tf.Tensor, tf.Tensor, tf.Tensor]):
@@ -162,6 +162,51 @@ class ActorCriticNetworkTransformer(Model):
             scale_tril=cov
         )
 
+        v = self.v(value)
+
+        return v, dist
+    
+
+class ActorCriticNetworkTransformerCategorical(Model):
+    def __init__(self,  fc_dims1=1, fc_dims2=128, fc_dims3=3, base_dir='trading_agent/actor_critic/tmp/', chkpt_dir='model_x', name='trading_bot_AC', encoderParams={}):
+        super(ActorCriticNetworkTransformerCategorical, self).__init__()
+        self.fc_dims1 = fc_dims1
+        self.fc_dims2 = fc_dims2
+        self.fc_dims3 = fc_dims3
+
+        self.model_name = name
+        self.base_dir = base_dir
+        self.checkpoint_dir = chkpt_dir
+        self.checkpoint_file = os.path.join(self.base_dir, self.checkpoint_dir, name)
+
+        self.encoder = Encoder(**encoderParams)
+        self.fc1  = Dense(self.fc_dims1,  activation='relu')
+        self.fc2  = Dense(self.fc_dims2,  activation='relu')
+        self.fc3  = Dense(self.fc_dims3,  activation='softmax')
+
+        self.v    = Dense(1, trainable=True, activation=None)
+
+    def call(self, state:tuple[tf.Tensor, tf.Tensor, tf.Tensor]):
+        marketPrice, slAndTp, entryPrice = state
+
+        # state shape will be: [batch, [open,high,low,close], N] == [batch, 4, N]
+        # print(f"marketPrice shape: {marketPrice.shape}")
+        # print(f"slAndTp shape: {slAndTp.shape}")
+
+        # batch_size = state.shape[0]
+
+        value = self.encoder(marketPrice) # shape == [batch, N, 4]
+        # print(f"value1 shape: {value.shape}")
+        value = self.fc1(value) # shape == [batch, N, 1]
+        value = tf.squeeze(value, axis=2) # shape == [batch, N]
+
+        value = tf.concat([value, slAndTp, entryPrice], axis=1)
+
+        # print(f"value2 shape: {value.shape}")
+        value = self.fc2(value)    # shape == [batch, fc_dims2]
+        pi = self.fc3(value)    # shape == [batch, fc_dims3]
+
+        dist = tfp.distributions.Categorical(probs=pi)
         v = self.v(value)
 
         return v, dist

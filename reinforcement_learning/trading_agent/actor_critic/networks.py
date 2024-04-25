@@ -27,7 +27,7 @@ class ActorCriticNetwork(Model):
         self.lstm1 = LSTM(self.lstm1_dims, return_sequences=True, activation='sigmoid')
         self.lstm2 = LSTM(self.lstm2_dims,  activation='tanh')
         self.fc1  = Dense(self.fc_dims1,  activation='tanh')
-        self.fc2  = Dense(self.fc_dims2,  activation='tanh')
+        self.fc2  = Dense(self.fc_dims2,  activation='sigmoid')
         self.v   = Dense(1, trainable=True, activation=None)
 
     def call(self, state:tuple[tf.Tensor, tf.Tensor, tf.Tensor]):
