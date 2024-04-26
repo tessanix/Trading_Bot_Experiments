@@ -6,7 +6,7 @@ from reinforcement_learning.trading_agent.actor_critic.encoderTransformerNetwork
 
 
 class Agent:
-    def __init__(self, alpha=0.0001, gamma=0.99, base_dir='trading_agent/actor_critic/tmp/', chkpt_dir="model_x", name='trading_bot_AC', transformer=False, transParams={}, norm=True):
+    def __init__(self, alpha=0.0001, gamma=0.8, base_dir='trading_agent/actor_critic/tmp/', chkpt_dir="model_x", name='trading_bot_AC', transformer=False, transParams={}, norm=True):
         self.gamma = gamma
         self.action = None
         self.norm = norm

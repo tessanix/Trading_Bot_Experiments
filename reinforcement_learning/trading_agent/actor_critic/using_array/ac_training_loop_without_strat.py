@@ -30,7 +30,7 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
         observation = data[startIndex+i-candlesWindow:startIndex+i, :4] # => "close", "open","high", "low"
         observation_:np.ndarray
         actionList = []
-        score_this_ep = 0
+        rewards_this_ep = []
 
         while not done:
 
@@ -47,29 +47,29 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
 
                 if action == 0: # enter market
                     inPosition = True
-                    reward = -1.0
 
                     lose = currentPrice <= entryPrice+maxSlInPips
                     if lose:
                         profit = maxSlInPips*pipValue*lot_size
                         capital += profit 
-                        reward += profit
+                        reward = profit - 1.0 # - spread
                         done = True
                     else:
-                        reward += (currentPrice - entryPrice) # reward basé sur la variation du prix depuis entry_price
+                        reward = (currentPrice - entryPrice) - 1.0 # reward basé sur la variation du prix depuis entry_price - spread
 
                 elif action == 1: # exit market
                     reward = -50.0
+                    print("AGENT CAN'T EXIT MARKET, HE IS NOT IN POSITION!")
                     done = True
 
-                else: # do nothing
-                    # reward += 0.0
+                else: # action == 2 => do nothing
+                    reward = 0.0
                     done = True
                 
                 
                 agent.learn(observation, reward, observation_, maxSlInPips, done, entryPrice, action_mask)
                 observation = observation_
-                score_this_ep += reward
+                rewards_this_ep.append(reward)
 
             else:
                 # if i!=1:
@@ -84,6 +84,7 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
 
                 if action == 0: # enter market
                     reward = -50.0
+                    print("AGENT CAN'T ENTER MARKET AGAIN, HE IS ALREADY IN!")
                     done = True
 
                 elif action == 1: # exit market
@@ -93,17 +94,16 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
                     reward = profit # reward basé sur la variation du prix depuis entry_price
                     done = True
 
-                # else: # do nothing
-                #     pass
-                    # reward += 0.0
-                    # done = True
+                else: # action == 2 => do nothing
+                    reward = 0.0
+                    
                 
                 agent.learn(observation, reward, observation_, maxSlInPips, done, entryPrice, action_mask)
                 observation = observation_
-                score_this_ep += reward
+                rewards_this_ep.append(reward)
 
         # END OF WHILE LOOP
-        score_history.append(score_this_ep)
+        score_history.append(sum(rewards_this_ep))
         avg_score = np.mean(score_history[-80:])
 
         if avg_score > best_score and len(score_history) > 10: 
@@ -114,8 +114,8 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
         #     previousBestCap = capital
         #     if save_model:
         #         agent.save_models()
-
-        print(f"episode:{episode}, capital:{capital:.2f}, actions:{actionList[-10:]}, score:{score_this_ep:.3f}, avg_score:{avg_score:.3f}, nb iter:{i}")
+        rewards_this_ep = [ round(elem,1) for elem in rewards_this_ep ][-10:]
+        print(f"episode:{episode}, capital:{capital:.2f}, actions:{actionList[-10:]}, rewards:{rewards_this_ep}, avg_score:{avg_score:.3f}, nb iter:{i}")
 
 
     return score_history
