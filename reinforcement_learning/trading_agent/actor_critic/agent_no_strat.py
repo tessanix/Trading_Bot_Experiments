@@ -1,8 +1,15 @@
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.keras.optimizer_v2.adam import Adam
+import tensorflow_probability as tfp
+from tensorflow.keras.optimizers import Adam
 from reinforcement_learning.trading_agent.actor_critic.networks import ActorCriticNetwork
 from reinforcement_learning.trading_agent.actor_critic.encoderTransformerNetwork import ActorCriticNetworkTransformerCategorical
+from tensorflow.keras.activations import softmax
+
+def softmax_filtered( input, mask):
+    masked_input = input + mask
+    # print(f'masked_input: {masked_input}, mask: {mask}')
+    return softmax(masked_input)
 
 
 class Agent:
@@ -24,18 +31,18 @@ class Agent:
         observation   = tf.convert_to_tensor([_observation], dtype=tf.float32)
         slAndTpInPips = tf.convert_to_tensor([[_maxSlInPips]], dtype=tf.float32)
         entryPrice    = tf.convert_to_tensor([[_entryPrice]], dtype=tf.float32)
-        # print(f"observation shape: {observation.shape}")
-        _, dist = self.actor_critic((observation, slAndTpInPips, entryPrice), mask=action_mask)    
-       
+  
+        _, probs = self.actor_critic((observation, slAndTpInPips, entryPrice))    
+        probs = softmax_filtered(probs, action_mask)
+        dist = tfp.distributions.Categorical(probs=probs)
+
         action = dist.sample()
-        # print(f"action shape: {action}")
         self.action = action
-        # print(f'action: {action}')
         return action[0]
     
     def save_models(self):
         print("--- saving models ---")
-        self.actor_critic.save_weights(self.actor_critic.checkpoint_file)
+        self.actor_critic.save(self.actor_critic.checkpoint_file)
 
     def load_weights(self):
         print("--- loading models ---")
@@ -44,11 +51,7 @@ class Agent:
     def minMaxNorm(self, _min, _max, _data):
         return (_data-_min)/(_max-_min)    
     
-    
-    def learn(self, state:np.ndarray, reward, state_:np.ndarray, maxSlInPips, _entryPrice, done, action_mask):
-        # print(f'state shape: {state.shape}')
-        # print(f'state_ shape: {state_.shape}')
-
+    def learn(self, state:np.ndarray, reward, state_:np.ndarray, maxSlInPips, _entryPrice, done):
         if self.norm:
             _entryPrice = self.minMaxNorm(350.0, 6000.0, _entryPrice)
             state = self.minMaxNorm(350.0, 6000.0, state)
@@ -61,25 +64,30 @@ class Agent:
         state_     = tf.convert_to_tensor([state_], dtype=tf.float32)
         reward     = tf.convert_to_tensor([reward], dtype=tf.float32)
 
-        with tf.GradientTape() as tape:
-            state_value, dist = self.actor_critic((state, slAndTp, entryPrice), mask=action_mask)
-            state_value_, _ = self.actor_critic((state_, slAndTp, entryPrice), mask=action_mask)
+        with tf.GradientTape(persistent=True) as tape:
+            state_value, probs = self.actor_critic((state, slAndTp, entryPrice))
+            state_value_, _ = self.actor_critic((state_, slAndTp, entryPrice))
             state_value = tf.squeeze(state_value)
             state_value_ = tf.squeeze(state_value_)
+            
+            probs = softmax(probs)
+            dist = tfp.distributions.Categorical(probs=probs)
 
+            # print("########### LEARN FUNC ################")
+            # print(f'state shape: {state.shape}, state_ shape: {state_.shape}')
             log_prob = dist.log_prob(self.action)
+            # print(f'probs:{probs}, log_prob:{log_prob}, self.action:{self.action}')
+
 
             delta = reward + self.gamma*state_value_*(1-int(done)) - state_value
+            # print(f'delta:{delta}, done:{done}|{int(done)}, gamma:{self.gamma}, reward: {reward}, state_value_:{state_value_}, state_value:{state_value}')
             actor_loss = -log_prob*delta
             critic_loss = delta**2
 
             total_loss = actor_loss + critic_loss
-
+            # print(f'actor_loss:{actor_loss}, critic_loss:{critic_loss}, total_loss: {total_loss}')
                 
-            gradient = tape.gradient(total_loss, self.actor_critic.trainable_variables)
-            # gradient = [tf.Variable(grad)  for grad in gradient]
-            trainables = [tf.Variable(tr)  for tr in self.actor_critic.trainable_variables]
-            # for grad, var in zip(gradient, self.actor_critic.trainable_variables):
-            #     print(f"Gradient shape: {tf.Variable(grad).shape}, Variable shape: {var.shape}")
-            self.actor_critic.optimizer.apply_gradients(zip(gradient, trainables))
+        gradient = tape.gradient(total_loss, self.actor_critic.trainable_variables)
+        # print('gradient: ', gradient[0])
+        self.actor_critic.optimizer.apply_gradients(zip(gradient, self.actor_critic.trainable_variables))
             

@@ -51,5 +51,7 @@ class Agent:
             total_loss = actor_loss + critic_loss
 
             gradient = tape.gradient(total_loss, self.actor_critic.trainable_variables)
+            print(gradient[0])
             self.actor_critic.optimizer.apply_gradients(zip(gradient, self.actor_critic.trainable_variables))
+            # print(type(self.actor_critic.trainable_variables[0]))
             

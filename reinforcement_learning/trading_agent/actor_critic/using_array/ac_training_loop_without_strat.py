@@ -4,6 +4,7 @@ from reinforcement_learning.trading_agent.actor_critic.agent_no_strat import Age
 # import sys; sys.path.insert(1, '../../../../')
 from utils import utility
 import tensorflow as tf
+import math
 
 # 0 = enter BUY position
 # 1 = exit BUY position (SELL)
@@ -17,7 +18,6 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
     lot_size = 0.01
     maxRisk = 0.02 # 2%
     dataLength = len(data)
-    # capital = _capital
     # previousBestCap = capital
 
     for episode in range(n_games):
@@ -37,7 +37,7 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
             if not inPosition:
                 entryPrice = observation[-1, 0]
                 maxSlInPips = -utility.getSlInPipsForTrade(invested=capital*maxRisk, pipValue=pipValue, lotSize=0.01)
-                action_mask = np.array([[True, False, True]])
+                action_mask = np.array([[0.0, -math.inf, 0.0]])
                 action = agent.choose_action(observation, maxSlInPips, entryPrice, action_mask) # choose action
 
                 actionList.append(tf.get_static_value(action))
@@ -47,7 +47,6 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
 
                 if action == 0: # enter market
                     inPosition = True
-
                     lose = currentPrice <= entryPrice+maxSlInPips
                     if lose:
                         profit = maxSlInPips*pipValue*lot_size
@@ -59,7 +58,7 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
 
                 elif action == 1: # exit market
                     reward = -50.0
-                    print("AGENT CAN'T EXIT MARKET, HE IS NOT IN POSITION!")
+                    print("INVALID ACTION : AGENT CAN'T EXIT MARKET, HE IS NOT IN POSITION!")
                     done = True
 
                 else: # action == 2 => do nothing
@@ -67,24 +66,21 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
                     done = True
                 
                 
-                agent.learn(observation, reward, observation_, maxSlInPips, done, entryPrice, action_mask)
+                agent.learn(observation, reward, observation_, maxSlInPips, entryPrice, done)
                 observation = observation_
                 rewards_this_ep.append(reward)
 
             else:
-                # if i!=1:
-                #     currentPrice = observation_[-1, 0]
                 i+=1
                 observation_ = data[startIndex+i-candlesWindow:startIndex+i, :4]
                 currentPrice = observation_[-1, 0]
-                action_mask = np.array([[False, True, True]])
+                action_mask = np.array([[-math.inf, 0.0, 0.0]])
                 action = agent.choose_action(observation, maxSlInPips, entryPrice, action_mask)
                 actionList.append(tf.get_static_value(action))
             
-
                 if action == 0: # enter market
                     reward = -50.0
-                    print("AGENT CAN'T ENTER MARKET AGAIN, HE IS ALREADY IN!")
+                    print("INVALID ACTION : AGENT CAN'T ENTER MARKET AGAIN, HE IS ALREADY IN!")
                     done = True
 
                 elif action == 1: # exit market
@@ -98,7 +94,7 @@ def actorCritictrainingLoop(data: np.ndarray, agent:Agent, pipValue:float=50.0, 
                     reward = 0.0
                     
                 
-                agent.learn(observation, reward, observation_, maxSlInPips, done, entryPrice, action_mask)
+                agent.learn(observation, reward, observation_, maxSlInPips, entryPrice, done)
                 observation = observation_
                 rewards_this_ep.append(reward)
 

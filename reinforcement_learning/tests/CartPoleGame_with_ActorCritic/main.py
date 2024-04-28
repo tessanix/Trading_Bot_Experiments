@@ -7,7 +7,7 @@ if __name__ == '__main__':
     env = gym.make("CartPole-v1", render_mode="human")
 
     agent = Agent(alpha=1e-5, n_actions=env.action_space.n)
-    n_games = 10
+    n_games = 1
 
     best_score = env.reward_range[0]
     score_history = []

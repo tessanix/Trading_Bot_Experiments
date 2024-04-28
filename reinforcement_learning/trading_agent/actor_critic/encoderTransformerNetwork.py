@@ -1,12 +1,9 @@
 import numpy as np
 import os
 import tensorflow as tf
+from tensorflow.keras import Model
 from tensorflow.keras.layers import MultiHeadAttention
 from tensorflow.keras.layers import LayerNormalization, Layer, Dense, ReLU
-from tensorflow.python.keras import Model
-import tensorflow_probability as tfp
-from tensorflow.python.keras.activations import tanh, softmax
-import math
 
 
 # https://machinelearningmastery.com/implementing-the-transformer-encoder-from-scratch-in-tensorflow-and-keras/
@@ -183,14 +180,12 @@ class ActorCriticNetworkTransformerCategorical(Model):
         self.encoder = Encoder(**encoderParams)
         self.fc1  = Dense(self.fc_dims1,  activation='relu')
         self.fc2  = Dense(self.fc_dims2,  activation='relu')
-        self.fc3  = Dense(self.fc_dims3,  activation=None)
+        self.fc3  = Dense(self.fc_dims3,  activation='tanh')
 
         self.v    = Dense(1, trainable=True, activation=None)
 
-    def softmax_filtered(self, input, mask):
-        return softmax(tf.where(mask, input, -math.inf))
 
-    def call(self, state:tuple[tf.Tensor, tf.Tensor, tf.Tensor], mask:np.ndarray):
+    def call(self, state:tuple[tf.Tensor, tf.Tensor, tf.Tensor]):
         marketPrice, slAndTp, entryPrice = state
 
         # state shape will be: [batch, [open,high,low,close], N] == [batch, 4, N]
@@ -209,26 +204,8 @@ class ActorCriticNetworkTransformerCategorical(Model):
         # print(f"value2 shape: {value.shape}")
         value = self.fc2(value)    # shape == [batch, fc_dims2]
         pi = self.fc3(value)    # shape == [batch, fc_dims3]
-        # pi = softmax(tf.boolean_mask(pi, mask))
-        pi = self.softmax_filtered(pi, mask)
-        dist = tfp.distributions.Categorical(probs=pi)
+  
         v = self.v(value)
 
-        return v, dist
+        return v, pi
     
-
-
-# def softmax_filtered(input, mask):
-
-#     def partial_softmax(dividende, divisor_tensor):
-#         return tf.exp(dividende) / tf.reduce_sum(tf.exp(divisor_tensor), keepdims=True)
-    
-#     divisor_tensor = tf.boolean_mask(input, mask)
-#     l = []
-#     for i, m in enumerate(mask):
-#         if m == True:
-#             l.append(partial_softmax(input[i], divisor_tensor))
-#         else: 
-#             l.append(0)
-
-#     return tf.constant([l])

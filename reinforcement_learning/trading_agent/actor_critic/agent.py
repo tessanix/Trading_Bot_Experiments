@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.keras.optimizer_v2.adam import Adam
+from tensorflow.keras.optimizers import Adam
 from reinforcement_learning.trading_agent.actor_critic.networks import ActorCriticNetwork
 from reinforcement_learning.trading_agent.actor_critic.encoderTransformerNetwork import ActorCriticNetworkTransformer
 
@@ -104,7 +104,7 @@ class Agent:
         state_     = tf.convert_to_tensor([state_], dtype=tf.float32)
         reward     = tf.convert_to_tensor([reward], dtype=tf.float32)
 
-        with tf.GradientTape() as tape:
+        with tf.GradientTape(persistent=True) as tape:
             state_value, dist = self.actor_critic((state, slAndTp, entryPrice))
             state_value_, _ = self.actor_critic((state_, slAndTp, entryPrice))
             state_value = tf.squeeze(state_value)
@@ -119,10 +119,10 @@ class Agent:
             total_loss = actor_loss + critic_loss
 
                 
-            gradient = tape.gradient(total_loss, self.actor_critic.trainable_variables)
-            # gradient = [tf.Variable(grad)  for grad in gradient]
-            trainables = [tf.Variable(tr)  for tr in self.actor_critic.trainable_variables]
-            # for grad, var in zip(gradient, self.actor_critic.trainable_variables):
-            #     print(f"Gradient shape: {tf.Variable(grad).shape}, Variable shape: {var.shape}")
-            self.actor_critic.optimizer.apply_gradients(zip(gradient, trainables))
+        gradient = tape.gradient(total_loss, self.actor_critic.trainable_variables)
+        # gradient = [tf.Variable(grad)  for grad in gradient]
+        # trainables = [tf.Variable(tr)  for tr in self.actor_critic.trainable_variables]
+        # for grad, var in zip(gradient, self.actor_critic.trainable_variables):
+        #     print(f"Gradient shape: {tf.Variable(grad).shape}, Variable shape: {var.shape}")
+        self.actor_critic.optimizer.apply_gradients(zip(gradient, self.actor_critic.trainable_variables))
             
