@@ -31,12 +31,15 @@ if __name__ == '__main__':
             observation_, reward, done, _, info = env.step(action)
             n_steps += 1
             score += reward
-            agent.store_transition(observation, action,
-                                   prob, val, reward, done)
+            agent.store_transition(observation, action, prob, val, reward, done)
+
             if n_steps % N == 0:
                 agent.learn()
                 learn_iters += 1
+
             observation = observation_
+        # END OF WHILE LOOP
+            
         score_history.append(score)
         avg_score = np.mean(score_history[-100:])
 
@@ -44,6 +47,4 @@ if __name__ == '__main__':
             best_score = avg_score
             agent.save_models()
 
-        print('episode', i, 'score %.1f' % score, 'avg score %.1f' % avg_score,
-              'time_steps', n_steps, 'learning_steps', learn_iters)
-    x = [i+1 for i in range(len(score_history))]
+        print('episode', i, 'score %.1f' % score, 'avg score %.1f' % avg_score, 'time_steps', n_steps, 'learning_steps', learn_iters)

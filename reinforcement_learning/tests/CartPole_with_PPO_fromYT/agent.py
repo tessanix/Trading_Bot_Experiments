@@ -24,6 +24,7 @@ class Agent:
         self.memory = PPOMemory(batch_size)
 
     def store_transition(self, state, action, probs, vals, reward, done):
+        print(f'state shape: {state.shape}')
         self.memory.store_memory(state, action, probs, vals, reward, done)
 
     def save_models(self):
@@ -53,9 +54,10 @@ class Agent:
 
     def learn(self):
         for _ in range(self.n_epochs):
-            state_arr, action_arr, old_prob_arr, vals_arr,\
-                reward_arr, dones_arr, batches = \
-                self.memory.generate_batches()
+            state_arr, action_arr, old_prob_arr, vals_arr, reward_arr, dones_arr, batches = self.memory.generate_batches()
+
+            print(f'state_arr shape: {state_arr.shape}')
+            print(f'batches: {batches}')
 
             values = vals_arr
             advantage = np.zeros(len(reward_arr), dtype=np.float32)
@@ -64,13 +66,13 @@ class Agent:
                 discount = 1
                 a_t = 0
                 for k in range(t, len(reward_arr)-1):
-                    a_t += discount*(reward_arr[k] + self.gamma*values[k+1] * (
-                        1-int(dones_arr[k])) - values[k])
+                    a_t += discount*(reward_arr[k] + self.gamma*values[k+1] * (1-int(dones_arr[k])) - values[k])
                     discount *= self.gamma*self.gae_lambda
                 advantage[t] = a_t
 
             for batch in batches:
                 with tf.GradientTape(persistent=True) as tape:
+                    print(f"state_arr[batch] shape: {state_arr[batch].shape}")
                     states = tf.convert_to_tensor(state_arr[batch])
                     old_probs = tf.convert_to_tensor(old_prob_arr[batch])
                     actions = tf.convert_to_tensor(action_arr[batch])
@@ -85,9 +87,7 @@ class Agent:
 
                     prob_ratio = tf.math.exp(new_probs - old_probs)
                     weighted_probs = advantage[batch] * prob_ratio
-                    clipped_probs = tf.clip_by_value(prob_ratio,
-                                                     1-self.policy_clip,
-                                                     1+self.policy_clip)
+                    clipped_probs = tf.clip_by_value(prob_ratio, 1-self.policy_clip, 1+self.policy_clip)
                     weighted_clipped_probs = clipped_probs * advantage[batch]
                     actor_loss = -tf.math.minimum(weighted_probs,
                                                   weighted_clipped_probs)
