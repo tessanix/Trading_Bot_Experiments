@@ -1,9 +1,8 @@
-import numpy as np
 import os
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model
-from tensorflow.keras.layers import MultiHeadAttention
-from tensorflow.keras.layers import LayerNormalization, Layer, Dense, ReLU
+from tensorflow.keras.layers import MultiHeadAttention, LayerNormalization, Layer, Dense, ReLU
 
 
 # https://machinelearningmastery.com/implementing-the-transformer-encoder-from-scratch-in-tensorflow-and-keras/

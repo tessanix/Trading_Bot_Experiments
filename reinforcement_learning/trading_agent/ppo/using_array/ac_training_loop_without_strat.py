@@ -1,10 +1,9 @@
-from random import randrange
-import numpy as np
-from reinforcement_learning.trading_agent.ppo.agent_no_strat import Agent
-# import sys; sys.path.insert(1, '../../../../')
-from utils import utility
-import tensorflow as tf
 import math
+import numpy as np
+import tensorflow as tf
+from utils import utility
+from random import randrange
+from reinforcement_learning.trading_agent.ppo.agent_no_strat import Agent
 
 # 0 = enter BUY position
 # 1 = exit BUY position (SELL)
