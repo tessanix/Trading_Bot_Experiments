@@ -1,4 +1,3 @@
-from operator import index
 import pandas as pd
 
 def between(a, min, max): 
@@ -54,36 +53,64 @@ def computeAvgLossesAndWins(trades: pd.DataFrame, display: bool=False) -> tuple[
     return avgLosses, avgWins
 
 
-import plotly.express as px
+# import plotly.express as px
+# import plotly.graph_objects as go
+
+# def displayCapitalOverTime(trades: pd.DataFrame):
+#     fig = px.line(trades, x="entry_date", y="capital_after_trade")
+#     fig.show()
+
+
+
+# def displayChartPrice(df:pd.DataFrame, keylevels:list[float]):
+#     fig = go.Figure(
+#         data=[go.Candlestick(
+#                 x=df["date"],
+#                 open=df['open'],
+#                 high=df['high'],
+#                 low=df['low'],
+#                 close=df['close'],
+#                 increasing_line_color= 'green', 
+#                 decreasing_line_color= 'red')
+#             ]
+#     )
+#     for k in keylevels:
+#         fig.add_hline(y=k)
+
+#     fig.update_layout(xaxis_rangeslider_visible=False)
+#     fig.update_xaxes(showgrid=False)
+#     fig.update_yaxes(showgrid=False)
+#     fig.update_layout(paper_bgcolor='black', plot_bgcolor='black')
+#     fig.show()
+
+# def getProfitEachMonths(trades: pd.DataFrame):
+#     pass
+
+
 import plotly.graph_objects as go
+from plotly import subplots
 
-def displayCapitalOverTime(trades: pd.DataFrame):
-    fig = px.line(trades, x="entry_date", y="capital_after_trade")
-    fig.show()
+def write_image_of_capital_and_scores(filename, portfolio_values, gains_losses):
 
+    # Add the first time series (portfolio value)
+    chart1 = go.Scatter(x=list(range(len(portfolio_values))), y=portfolio_values, mode='lines', name='Portfolio Value')
 
+    # Add the second time series (gains and losses) as a subplot
+    chart2 = go.Scatter(x=list(range(len(gains_losses))), y=gains_losses, mode='lines', name='Gains/Losses', yaxis='y2')
 
-def displayChartPrice(df:pd.DataFrame, keylevels:list[float]):
-    fig = go.Figure(
-        data=[go.Candlestick(
-                x=df["date"],
-                open=df['open'],
-                high=df['high'],
-                low=df['low'],
-                close=df['close'],
-                increasing_line_color= 'green', 
-                decreasing_line_color= 'red')
-            ]
+    fig = subplots.make_subplots(rows=2, cols=1)
+    fig.append_trace(chart1, 1, 1)
+    fig.append_trace(chart2, 2, 1)
+    # fig['layout'].update(height=600, width=800,
+    #                      title='subplot')
+
+    # Update layout to create subplot
+    fig.update_layout(
+        yaxis=dict(title='Portfolio Value (€)'),
+        yaxis2=dict(title='Gains/Losses (€)')
     )
-    for k in keylevels:
-        fig.add_hline(y=k)
 
-    fig.update_layout(xaxis_rangeslider_visible=False)
-    fig.update_xaxes(showgrid=False)
-    fig.update_yaxes(showgrid=False)
-    fig.update_layout(paper_bgcolor='black', plot_bgcolor='black')
-    fig.show()
+    # Save the plot to a file
+    fig.write_image(filename)
 
-def getProfitEachMonths(trades: pd.DataFrame):
-    pass
 
