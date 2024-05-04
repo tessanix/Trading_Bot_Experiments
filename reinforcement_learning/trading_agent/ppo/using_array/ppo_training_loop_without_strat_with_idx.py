@@ -9,7 +9,7 @@ from reinforcement_learning.trading_agent.ppo.agent_no_strat import Agent
 # 1 = exit BUY position (SELL)
 # 2 = do nothing
 
-def actorCritictrainingLoop(data: np.ndarray, train_indices:list, agent:Agent, pipValue:float=50.0, n_games:int=1000, capital:float=4000.0, save_model=True):
+def PPOtrainingLoop(data: np.ndarray, train_indices:list, agent:Agent, pipValue:float=50.0, n_games:int=1000, capital:float=4000.0, save_model=True, d_model=4):
     # load_checkPoint = load_checkPt
     score_history = []
     capitals = []
@@ -31,7 +31,7 @@ def actorCritictrainingLoop(data: np.ndarray, train_indices:list, agent:Agent, p
         entryPrice, reward, maxSlInPips = 0.0, 0.0, 0.0
         i = 0
         startIndex = train_indices[episode%len(train_indices)] # FIXME: if startIndex == dataLength => error index
-        observation = data[startIndex+i-candlesWindow:startIndex+i, :4] # => "close", "open","high", "low"
+        observation = data[startIndex+i-candlesWindow:startIndex+i, :d_model] # => "close", "open","high", "low"
         observation_:np.ndarray
         actionList = []
         rewards_this_ep = []
@@ -42,11 +42,11 @@ def actorCritictrainingLoop(data: np.ndarray, train_indices:list, agent:Agent, p
                 entryPrice = observation[-1, 0]
                 maxSlInPips = -utility.getSlInPipsForTrade(invested=capital*maxRisk, pipValue=pipValue, lotSize=0.01)
                 action_mask = np.array([[0.0, -math.inf, 0.0]])
-                action, prob, val = agent.choose_action(observation, maxSlInPips, entryPrice, action_mask) # choose action
+                action, prob, val = agent.choose_action(observation, maxSlInPips, entryPrice, action_mask, training=True) # choose action
                 n_steps += 1
                 actionList.append(tf.get_static_value(action))
                 i+=1
-                observation_ = data[startIndex+i-candlesWindow:startIndex+i, :4]
+                observation_ = data[startIndex+i-candlesWindow:startIndex+i, :d_model]
                 currentPrice = observation_[-1, 0]
 
                 if action == 0: # enter market
@@ -80,10 +80,10 @@ def actorCritictrainingLoop(data: np.ndarray, train_indices:list, agent:Agent, p
 
             else:
                 i+=1
-                observation_ = data[startIndex+i-candlesWindow:startIndex+i, :4]
+                observation_ = data[startIndex+i-candlesWindow:startIndex+i, :d_model]
                 currentPrice = observation_[-1, 0]
                 action_mask = np.array([[-math.inf, 0.0, 0.0]])
-                action, prob, val = agent.choose_action(observation, maxSlInPips, entryPrice, action_mask)
+                action, prob, val = agent.choose_action(observation, maxSlInPips, entryPrice, action_mask, training=True)
                 n_steps += 1
                 actionList.append(tf.get_static_value(action))
             
@@ -120,7 +120,7 @@ def actorCritictrainingLoop(data: np.ndarray, train_indices:list, agent:Agent, p
             best_score = avg_score
             if save_model:
                 agent.save_models()
-        # elif episodeTrainedOn%20==0 and previousBestCap < capital:
+        # elif episode%500==0 and previousBestCap < capital:
         #     previousBestCap = capital
         #     if save_model:
         #         agent.save_models()
@@ -128,4 +128,4 @@ def actorCritictrainingLoop(data: np.ndarray, train_indices:list, agent:Agent, p
         print(f"episode:{episode}, capital:{capital:.2f}, actions:{actionList[-10:]}, rewards:{rewards_this_ep}, avg_score:{avg_score:.3f}, nb iter:{i}")
 
 
-    return score_history, capital
+    return score_history, capitals

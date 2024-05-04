@@ -2,7 +2,7 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model
-from tensorflow.keras.layers import MultiHeadAttention, LayerNormalization, Layer, Dense, ReLU
+from tensorflow.keras.layers import MultiHeadAttention, LayerNormalization, Layer, Dense, ReLU, Dropout
 
 
 # https://machinelearningmastery.com/implementing-the-transformer-encoder-from-scratch-in-tensorflow-and-keras/
@@ -74,44 +74,54 @@ class FeedForward(Layer):
 
 # Implementing the Encoder Layer
 class EncoderLayer(Layer):
-    def __init__(self, h, d_k, d_v, d_model, d_ff): 
+    def __init__(self, h, d_k, d_v, d_model, d_ff, rate): 
         super(EncoderLayer, self).__init__()
-        self.multihead_attention = MultiHeadAttention(num_heads=h, key_dim=d_k, value_dim=d_v, dropout=0.0)
+        self.multihead_attention = MultiHeadAttention(num_heads=h, key_dim=d_k, value_dim=d_v, dropout=rate)
+        self.dropout1 = Dropout(rate)
+
         self.add_norm1 = AddNormalization()
         self.feed_forward = FeedForward(d_ff, d_model)
+                
+        self.dropout2 = Dropout(rate)
+
         self.add_norm2 = AddNormalization()
 
-    def call(self, x):
+    def call(self, x, training:bool):
         # Multi-head attention layer
 
-        multihead_output = self.multihead_attention(query=x, value=x, key=x)
+        multihead_output = self.multihead_attention(query=x, value=x, key=x, training=training)
         # Expected output shape = (batch_size, sequence_length, d_model)
         # Followed by an Add & Norm layer
+        multihead_output = self.dropout1(multihead_output, training=training)
+
         addnorm_output = self.add_norm1(x, multihead_output)
         # Expected output shape = (batch_size, sequence_length, d_model)
 
         # Followed by a fully connected layer
         feedforward_output = self.feed_forward(addnorm_output)
         # Expected output shape = (batch_size, sequence_length, d_model)
+        feedforward_output = self.dropout2(feedforward_output, training=training)
 
         # Followed by another Add & Norm layer
         return self.add_norm2(addnorm_output, feedforward_output)
 
 # Implementing the Encoder
 class Encoder(Layer):
-    def __init__(self, sequence_length, h, d_k, d_v, d_model, d_ff, n): 
+    def __init__(self, sequence_length, h, d_k, d_v, d_model, d_ff, n, rate): 
         super(Encoder, self).__init__()
         self.pos_encoding = PositionalEmbedding(sequence_length, d_model)
-        self.encoder_layer = [EncoderLayer(h, d_k, d_v, d_model, d_ff) for _ in range(n)]
+        self.dropout = Dropout(rate)
+        self.encoder_layer = [EncoderLayer(h, d_k, d_v, d_model, d_ff, rate) for _ in range(n)]
 
-    def call(self, input_sentence):
+    def call(self, input_sentence, training:bool):
         # Generate the positional encoding
         x = self.pos_encoding(input_sentence)
         # Expected output shape = (batch_size, sequence_length, d_model)
+        x = self.dropout(x, training=training)
 
         # Pass on the positional encoded values to each encoder layer
         for layer in self.encoder_layer:
-            x = layer(x)
+            x = layer(x, training=training)
 
         return x
     
@@ -129,12 +139,14 @@ class ActorNetworkTransformerCategorical(Model):
         self.checkpoint_dir = chkpt_dir
         self.checkpoint_file = os.path.join(self.base_dir, self.checkpoint_dir, name)
 
-        self.encoder = Encoder(**encoderParams)
-        self.fc1  = Dense(self.fc_dims1,  activation='relu')
-        self.fc2  = Dense(self.fc_dims2,  activation='relu')
-        self.fc3  = Dense(self.fc_dims3,  activation='tanh')
+        self.encoder  = Encoder(**encoderParams)
+        self.fc1      = Dense(self.fc_dims1,  activation='relu')
+        self.dropout1 = Dropout(encoderParams['rate'])
+        self.fc2      = Dense(self.fc_dims2,  activation='relu')
+        self.dropout2 = Dropout(encoderParams['rate'])
+        self.fc3      = Dense(self.fc_dims3,  activation='tanh')
 
-    def call(self, state:tuple[tf.Tensor, tf.Tensor, tf.Tensor]):
+    def call(self, state:tuple[tf.Tensor, tf.Tensor, tf.Tensor], training:bool):
         marketPrice, slAndTp, entryPrice = state
 
         # state shape will be: [batch, [open,high,low,close], N] == [batch, 4, N]
@@ -146,12 +158,16 @@ class ActorNetworkTransformerCategorical(Model):
         value = self.encoder(marketPrice) # shape == [batch, N, 4]
         # print(f"value1 shape: {value.shape}")
         value = self.fc1(value) # shape == [batch, N, 1]
+        value = self.dropout1(value, training=training)
+
         value = tf.squeeze(value, axis=2) # shape == [batch, N]
 
         value = tf.concat([value, slAndTp, entryPrice], axis=1)
 
         # print(f"value2 shape: {value.shape}")
         value = self.fc2(value)    # shape == [batch, fc_dims2]
+        value = self.dropout2(value, training=training)
+
         pi = self.fc3(value)    # shape == [batch, fc_dims3]
   
         return pi
@@ -170,12 +186,14 @@ class CriticNetworkTransformerCategorical(Model):
         self.checkpoint_file = os.path.join(self.base_dir, self.checkpoint_dir, name)
 
         self.encoder = Encoder(**encoderParams)
-        self.fc1  = Dense(self.fc_dims1,  activation='relu')
-        self.fc2  = Dense(self.fc_dims2,  activation='relu')
-        self.v    = Dense(1, trainable=True, activation=None)
+        self.fc1      = Dense(self.fc_dims1,  activation='relu')
+        self.dropout1 = Dropout(encoderParams['rate'])
+        self.fc2      = Dense(self.fc_dims2,  activation='relu')
+        self.dropout2 = Dropout(encoderParams['rate'])
+        self.v        = Dense(1, activation=None)
 
 
-    def call(self, state:tuple[tf.Tensor, tf.Tensor, tf.Tensor]):
+    def call(self, state:tuple[tf.Tensor, tf.Tensor, tf.Tensor], training:bool):
         marketPrice, slAndTp, entryPrice = state
 
         # state shape will be: [batch, [open,high,low,close], N] == [batch, 4, N]
@@ -187,14 +205,16 @@ class CriticNetworkTransformerCategorical(Model):
         value = self.encoder(marketPrice) # shape == [batch, N, 4]
         # print(f"value1 shape: {value.shape}")
         value = self.fc1(value) # shape == [batch, N, 1]
-        value = tf.squeeze(value, axis=2) # shape == [batch, N]
+        value = self.dropout1(value, training=training)
 
+        value = tf.squeeze(value, axis=2) # shape == [batch, N]
         # print(f"value shape:{value.shape}, slAndTp shape:{slAndTp.shape}, entryPrice shape:{entryPrice.shape}")
 
         value = tf.concat([value, slAndTp, entryPrice], axis=1)
 
         # print(f"value2 shape: {value.shape}")
         value = self.fc2(value)    # shape == [batch, fc_dims2]
+        value = self.dropout2(value, training=training)
   
         v = self.v(value)
 

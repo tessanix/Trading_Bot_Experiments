@@ -35,22 +35,23 @@ class Agent:
     def store_transition(self, state, maxSlInPips, entryPrice, action, probs, vals, reward, done):
         self.memory.store_memory(state,  maxSlInPips, entryPrice, action, probs, vals, reward, done)
 
-    def choose_action(self, _observation:np.ndarray, _maxSlInPips:float, _entryPrice:float, action_mask):
+    def choose_action(self, _observation:np.ndarray, _maxSlInPips:float, _entryPrice:float, action_mask, training:bool=False):
         # normalization
-        _observation = minMaxNorm(350.0, 6000.0, _observation)
-        _entryPrice = minMaxNorm(350.0, 6000.0, _entryPrice)
+        _observation[:,:10] = (_observation[:,:10] - 350.0)/(6000.0 - 350.0)
+        _observation[:,10:] = _observation[:,10:]/100 
+        _entryPrice = (_entryPrice - 350.0)/(6000.0 - 350.0)
         _maxSlInPips = _maxSlInPips/1000.0
 
         observation   = tf.convert_to_tensor([_observation])
         slAndTpInPips = tf.convert_to_tensor([[_maxSlInPips]])
         entryPrice    = tf.convert_to_tensor([[_entryPrice]])
   
-        probs = self.actor((observation, slAndTpInPips, entryPrice))    
+        probs = self.actor((observation, slAndTpInPips, entryPrice), training=training)    
         dist = tfp.distributions.Categorical(probs=softmax_filtered(probs, action_mask))
         action = dist.sample()
         log_prob = dist.log_prob(action)
 
-        value = self.critic((observation, slAndTpInPips, entryPrice))
+        value = self.critic((observation, slAndTpInPips, entryPrice), training=training)
 
         return action[0], log_prob[0], value[0]
     
@@ -67,9 +68,9 @@ class Agent:
     def learn(self):
         for _ in range(self.n_epochs):
             state_arr,  maxSlInPips_arr, entryPrice_arr, action_arr, old_prob_arr, vals_arr, reward_arr, dones_arr, batches = self.memory.generate_batches()
-            
             # normalization
-            state_arr       = minMaxNorm(350.0, 6000.0, state_arr)
+            state_arr[:, :, :10] = (state_arr[:, :, :10] - 350.0)/(6000.0 - 350.0)
+            state_arr[:, :, 10:] = state_arr[:, :, 10:]/100            
             entryPrice_arr  = minMaxNorm(350.0, 6000.0, entryPrice_arr)
             maxSlInPips_arr = maxSlInPips_arr/1000.0
 
@@ -97,11 +98,11 @@ class Agent:
                     entryPrice    = tf.expand_dims(entryPrice, -1)
 
                     # print(f"states shape:{states.shape}, slAndTpInPips shape:{slAndTpInPips.shape}, entryPrice shape:{entryPrice.shape}")
-                    probs = self.actor((states, slAndTpInPips, entryPrice))
+                    probs = self.actor((states, slAndTpInPips, entryPrice), training=True)
                     dist = tfp.distributions.Categorical(softmax(probs))
                     new_probs = dist.log_prob(actions)
 
-                    critic_value = self.critic((states, slAndTpInPips, entryPrice))
+                    critic_value = self.critic((states, slAndTpInPips, entryPrice), training=True)
 
                     critic_value = tf.squeeze(critic_value, 1)
 
