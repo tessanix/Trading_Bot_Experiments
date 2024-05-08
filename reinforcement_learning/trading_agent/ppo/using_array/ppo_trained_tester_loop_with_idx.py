@@ -10,14 +10,13 @@ from reinforcement_learning.trading_agent.ppo.agent_no_strat import Agent
 # 1 = exit BUY position (SELL)
 # 2 = do nothing
 
-def PPOtrainedLoop(data: np.ndarray, test_indices:list, agent:Agent, pipValue:float=50.0, n_games:int=1000, capital:float=4000.0, d_model=4):
+def PPOtrainedLoop(data: np.ndarray, test_indices:list, agent:Agent, pipValue:float=50.0, n_games:int=1000, capital:float=4000.0, d_model=4, candlesWindow=100):
     # load_checkPoint = load_checkPt
     capitals = []
     profits  = []
     trades_start_index = []
     nb_period_for_trade = []
 
-    candlesWindow = 100
     lot_size = 0.01
     maxRisk = 0.02 # 2%
     # dataLength = len(data)
